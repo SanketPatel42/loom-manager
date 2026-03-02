@@ -1,0 +1,34 @@
+{
+  "version": "5",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1771000666371,
+      "tag": "0000_concerned_thaddeus_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1771001064558,
+      "tag": "0001_bizarre_lethal_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1772349580196,
+      "tag": "0002_broad_archangel",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1772352439219,
+      "tag": "0003_nice_gorilla_man",
+      "breakpoints": true
+    }
+  ]
+}
