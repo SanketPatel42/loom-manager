@@ -11,8 +11,9 @@ import { browserEncryption } from "@/lib/browserEncryption";
 import { getActiveFactoryPrefix } from "@/lib/factoryContext";
 import {
     Trash2, Moon, Sun, AlertTriangle, Shield, ShieldCheck, ShieldOff,
-    Lock, Unlock, RefreshCw, Key, Database, Eye, EyeOff, Loader2
+    Lock, Unlock, RefreshCw, Key, Database, Eye, EyeOff, Loader2, BookOpen, PlayCircle
 } from "lucide-react";
+import UserGuide, { resetUserGuide } from "@/components/UserGuide";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -49,6 +50,7 @@ export default function Settings() {
     const { toast } = useToast();
     const [resetting, setResetting] = useState(false);
     const { theme, setTheme } = useTheme();
+    const [showGuide, setShowGuide] = useState(false);
 
     // Encryption state
     const [encryptionStatus, setEncryptionStatus] = useState<EncryptionStatus | null>(null);
@@ -565,6 +567,45 @@ export default function Settings() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* User Guide */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <BookOpen className="h-5 w-5 text-indigo-500" />
+                        User Guide & Help
+                    </CardTitle>
+                    <CardDescription>
+                        Learn about all the features of Grey Loom Manager
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">App Walkthrough</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Re-open the step-by-step guide covering all major features
+                            </p>
+                        </div>
+                        <Button
+                            variant="outline"
+                            className="gap-2 border-indigo-400/50 text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                            onClick={() => {
+                                resetUserGuide();
+                                setShowGuide(true);
+                            }}
+                        >
+                            <PlayCircle className="h-4 w-4" />
+                            Open Guide
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* User guide modal */}
+            {showGuide && (
+                <UserGuide onComplete={() => setShowGuide(false)} />
+            )}
 
             {/* In-App Updates (Electron Only) */}
             {isElectron && <UpdateManager />}

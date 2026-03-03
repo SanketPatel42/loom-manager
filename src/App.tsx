@@ -29,15 +29,26 @@ import FactoryLogin from "./pages/FactoryLogin";
 import { ThemeProvider } from "@/components/theme-provider";
 import { FactoryProvider, useFactory } from "@/lib/factoryContext";
 import { electronDb } from "@/lib/electronDb";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import SplashScreen from "./components/SplashScreen";
+import UserGuide, { useUserGuide } from "./components/UserGuide";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
   const { isFactorySelected } = useFactory();
+  const { showGuide } = useUserGuide();
+  const [guideVisible, setGuideVisible] = useState(showGuide);
 
   if (!isFactorySelected) {
-    return <FactoryLogin />;
+    return (
+      <>
+        {guideVisible && (
+          <UserGuide onComplete={() => setGuideVisible(false)} />
+        )}
+        <FactoryLogin />
+      </>
+    );
   }
 
   return (
@@ -65,6 +76,8 @@ const AppContent = () => {
 };
 
 const App = () => {
+  const [splashDone, setSplashDone] = useState(false);
+
   useEffect(() => {
     // Attempt migration on startup
     electronDb.migrate().then(() => {
@@ -79,11 +92,19 @@ const App = () => {
           <Toaster />
           <Sonner />
 
-          <FactoryProvider>
-            <HashRouter>
-              <AppContent />
-            </HashRouter>
-          </FactoryProvider>
+          {/* Splash screen shown on every app open */}
+          {!splashDone && (
+            <SplashScreen onComplete={() => setSplashDone(true)} />
+          )}
+
+          {/* Main app (rendered behind splash, shown after) */}
+          <div style={{ visibility: splashDone ? "visible" : "hidden" }}>
+            <FactoryProvider>
+              <HashRouter>
+                <AppContent />
+              </HashRouter>
+            </FactoryProvider>
+          </div>
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
