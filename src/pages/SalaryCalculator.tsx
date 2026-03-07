@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { storage } from "@/lib/localStorage";
+import React, { useState, useEffect } from "react";
+import { storage, asyncStorage } from "@/lib/storage";
 import type { WorkerProfile, Quality } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,12 +14,21 @@ import { calculateSalaries, WorkerSalary } from "@/utils/salaryUtils";
 import { APP_CONSTANTS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Helper to get CellData from legacy or new format
+const getCellData = (cellValue: any): { value: number; color: string | null } => {
+    if (typeof cellValue === 'object' && cellValue !== null && 'value' in cellValue) {
+        return cellValue;
+    }
+    return { value: typeof cellValue === 'number' ? cellValue : 0, color: null };
+};
+
 const { MACHINES_PER_SHEET, TOTAL_SHEETS, CURRENCY_SYMBOL } = APP_CONSTANTS;
 
 export default function SalaryCalculator() {
   const [workers, setWorkers] = useState<WorkerProfile[]>([]);
   const [qualities, setQualities] = useState<Quality[]>([]);
   const [salaryData, setSalaryData] = useState<WorkerSalary[]>([]);
+  const [sheetData, setSheetData] = useState<any>(null);
   const [activeCycle, setActiveCycle] = useState<'1-15' | '16-30'>('1-15');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,15 +49,17 @@ export default function SalaryCalculator() {
     loadData();
   }, [activeCycle]); // Reload when cycle changes
 
-  const loadData = () => {
+  const loadData = async () => {
     setIsLoading(true);
-    // Simulate a small delay for better UX (so the user sees the loading state comfortably)
-    setTimeout(() => {
+    try {
       console.log('=== SalaryCalculator: Loading Data ===');
       console.log('Active Cycle:', activeCycle);
-      const workerProfiles = storage.getWorkerProfiles();
-      const qualityData = storage.getQualities();
-      const sheetData = storage.getWorkerSheetData();
+
+      const [workerProfiles, qualityData, sheetData] = await Promise.all([
+        asyncStorage.getWorkerProfiles(),
+        asyncStorage.getQualities(),
+        asyncStorage.getWorkerSheetData()
+      ]);
 
       console.log('Worker Profiles:', workerProfiles.length);
       console.log('Quality Data:', qualityData.length);
@@ -56,17 +67,27 @@ export default function SalaryCalculator() {
 
       setWorkers(workerProfiles);
       setQualities(qualityData);
+      setSheetData(sheetData);
 
       if (sheetData) {
         console.log('Calculating salaries for cycle:', activeCycle);
+        console.log('Sheet data structure:', {
+          assignments: Object.keys(sheetData.assignments).length,
+          gridData: Object.keys(sheetData.gridData).length
+        });
+        
         const calculatedSalaries = calculateSalaries(sheetData, workerProfiles, qualityData, activeCycle);
+        console.log('Calculated salaries result:', calculatedSalaries.length, calculatedSalaries);
         setSalaryData(calculatedSalaries);
       } else {
         console.log('No sheet data found!');
         setSalaryData([]);
       }
+    } catch (error) {
+      console.error('Error loading salary data:', error);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   // Local calculateSalaries removed. Using utility function.
@@ -103,6 +124,49 @@ export default function SalaryCalculator() {
 
   const totalPayout = filteredSalaries.reduce((sum, s) => sum + s.totalSalary, 0);
   const totalWorkers = filteredSalaries.length;
+
+  // Diagnostic function
+  const showDiagnosticInfo = () => {
+    console.log('=== SALARY CALCULATOR DIAGNOSTIC INFO ===');
+    console.log('Workers:', workers.length);
+    console.log('Qualities:', qualities.length);
+    console.log('Sheet Data Available:', !!sheetData);
+    console.log('Active Cycle:', activeCycle);
+    
+    if (sheetData) {
+      console.log('Assignments:', Object.keys(sheetData.assignments).length);
+      console.log('Grid Data:', Object.keys(sheetData.gridData).length);
+      
+      // Check for any production data
+      let hasAnyProduction = false;
+      let totalProductionValue = 0;
+      Object.values(sheetData.gridData).forEach((grid: any) => {
+        grid.forEach((row: any) => {
+          for (let m = 1; m <= 12; m++) {
+            const dayCell = getCellData(row[`machine${m}_day`]);
+            const nightCell = getCellData(row[`machine${m}_night`]);
+            if (dayCell.value > 0 || nightCell.value > 0) {
+              hasAnyProduction = true;
+              totalProductionValue += dayCell.value + nightCell.value;
+            }
+          }
+        });
+      });
+      console.log('Has any production data:', hasAnyProduction);
+      console.log('Total production value:', totalProductionValue);
+      
+      // Check assignments
+      Object.entries(sheetData.assignments).forEach(([sheetKey, assignment]: [string, any]) => {
+        console.log(`Sheet ${sheetKey} assignment:`, {
+          dayWorker: assignment.dayWorker,
+          nightWorker: assignment.nightWorker,
+          cycle: assignment.cycle
+        });
+      });
+    }
+    
+    alert('Check browser console for detailed diagnostic information');
+  };
 
   // Detect workers with excessive machine assignments
   const workersWithTooManySheets = filteredSalaries.filter(s => s.sheets.length > 2);
@@ -210,8 +274,29 @@ export default function SalaryCalculator() {
                   <Skeleton className="h-12 w-full" />
                 </div>
               ) : filteredSalaries.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No salary data available for Days 1-15 cycle
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-4">
+                    No salary data available for Days {activeCycle} cycle
+                  </div>
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p>This could be because:</p>
+                    <ul className="list-disc list-inside space-y-1 text-left max-w-md mx-auto">
+                      <li>No production data has been entered for this cycle</li>
+                      <li>No workers are assigned to machines for this period</li>
+                      <li>No quality rates are configured</li>
+                    </ul>
+                    <p className="mt-4">
+                      <strong>Next steps:</strong> Check the "Worker & Machine Sheet" page to enter production data and assign workers.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-4"
+                      onClick={showDiagnosticInfo}
+                    >
+                      Show Diagnostic Info
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-md border">
@@ -247,8 +332,8 @@ export default function SalaryCalculator() {
                     </TableHeader>
                     <TableBody>
                       {filteredSalaries.map((salary) => (
-                        <>
-                          <TableRow key={salary.workerId} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRow(salary.workerId)}>
+                        <React.Fragment key={salary.workerId}>
+                          <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRow(salary.workerId)}>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
                                 <Button variant="ghost" size="icon" className="h-6 w-6 p-0">
@@ -348,7 +433,7 @@ export default function SalaryCalculator() {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </React.Fragment>
                       ))}
                       <TableRow className="bg-muted/50 font-bold">
                         <TableCell colSpan={2}>Total Payout</TableCell>
@@ -389,8 +474,21 @@ export default function SalaryCalculator() {
               )}
 
               {filteredSalaries.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No salary data available for Days 16-30 cycle
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-4">
+                    No salary data available for Days {activeCycle} cycle
+                  </div>
+                  <div className="text-sm text-muted-foreground space-y-2">
+                    <p>This could be because:</p>
+                    <ul className="list-disc list-inside space-y-1 text-left max-w-md mx-auto">
+                      <li>No production data has been entered for this cycle</li>
+                      <li>No workers are assigned to machines for this period</li>
+                      <li>No quality rates are configured</li>
+                    </ul>
+                    <p className="mt-4">
+                      <strong>Next steps:</strong> Check the "Worker & Machine Sheet" page to enter production data and assign workers.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-md border">
@@ -426,8 +524,8 @@ export default function SalaryCalculator() {
                     </TableHeader>
                     <TableBody>
                       {filteredSalaries.map((salary) => (
-                        <>
-                          <TableRow key={salary.workerId} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRow(salary.workerId)}>
+                        <React.Fragment key={salary.workerId}>
+                          <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRow(salary.workerId)}>
                             <TableCell className="font-medium">
                               <div className="flex items-center gap-2">
                                 <Button variant="ghost" size="icon" className="h-6 w-6 p-0">
@@ -527,7 +625,7 @@ export default function SalaryCalculator() {
                               </TableCell>
                             </TableRow>
                           )}
-                        </>
+                        </React.Fragment>
                       ))}
                       <TableRow className="bg-muted/50 font-bold">
                         <TableCell colSpan={2}>Total Payout</TableCell>

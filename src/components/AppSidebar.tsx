@@ -1,5 +1,5 @@
 
-import { LayoutDashboard, Wind, Package, Users, ShoppingCart, Package2, Building2, Archive, UserCog, Award, Wrench, Calculator, DollarSign, UserPlus, Settings, StickyNote } from "lucide-react";
+import { LayoutDashboard, Wind, Package, Users, ShoppingCart, Package2, Building2, Archive, UserCog, Award, Wrench, Calculator, DollarSign, UserPlus, Settings, StickyNote, BadgeDollarSign } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -112,6 +112,7 @@ export function AppSidebar() {
         { title: "Qualities", url: "/qualities", icon: Award },
         { title: "Stock", url: "/stock", icon: Archive },
         { title: "Textile Calculations", url: "/textile-calculations", icon: Calculator },
+        { title: "Costing", url: "/costing", icon: BadgeDollarSign },
       ],
     },
     {

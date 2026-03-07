@@ -47,6 +47,29 @@ class BrowserDatabase {
   }
 
   // Generic CRUD operations
+  
+  async getAll<T>(table: string): Promise<T[]> {
+    return this.get<T>(table);
+  }
+
+  async upsert<T extends { id: string }>(table: string, item: T): Promise<void> {
+    const items = await this.getRaw<T>(table);
+    const index = items.findIndex(i => i.id === item.id);
+    
+    if (index !== -1) {
+      // Update existing
+      items[index] = await browserEncryption.encryptRecord(table, item);
+      await this.setRaw(table, items);
+    } else {
+      // Add new
+      await this.add(table, item);
+    }
+  }
+
+  async deleteRecord(table: string, id: string): Promise<void> {
+    return this.delete(table, id);
+  }
+
   private async get<T>(table: string): Promise<T[]> {
     try {
       const data = localStorage.getItem(this.getKey(table));

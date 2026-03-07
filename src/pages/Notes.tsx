@@ -77,11 +77,11 @@ const Notes = () => {
                 title: "Success",
                 description: "Note added successfully.",
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to add note:", error);
             toast({
                 title: "Error",
-                description: "Failed to add note.",
+                description: error.message || "Failed to add note.",
                 variant: "destructive",
             });
         }

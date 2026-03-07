@@ -23,8 +23,23 @@ export const asyncStorage = isElectron ? electronDb : browserDb;
 export const storage = isElectron
   ? {
     ...localStorageSync,  // sync fallback base
-    ...electronDb,        // async overrides
+    ...electronDb,        // This only spreads properties, not methods!
+    // Explicitly map methods or use proxies if needed, but for now, 
+    // let's ensure the key methods are available or use asyncStorage directly.
     async: electronDb,
+    getWorkerProfiles: () => electronDb.getWorkerProfiles(),
+    getQualities: () => electronDb.getQualities(),
+    getWorkerSheetData: () => electronDb.getWorkerSheetData(),
+    getBeams: () => electronDb.getBeams(),
+    getBeamPasars: () => electronDb.getBeamPasars(),
+    getBegariWorkers: () => electronDb.getBegariWorkers(),
+    getTFOWorkers: () => electronDb.getTFOWorkers(),
+    getTFOAttendance: () => electronDb.getTFOAttendance(),
+    getBobbinWorkers: () => electronDb.getBobbinWorkers(),
+    getBobbinAttendance: () => electronDb.getBobbinAttendance(),
+    getMasterWorkers: () => electronDb.getMasterWorkers(),
+    getWiremanWorkers: () => electronDb.getWiremanWorkers(),
+    getWiremanBills: () => electronDb.getWiremanBills(),
   }
   : {
     ...localStorageSync,  // sync fallback base

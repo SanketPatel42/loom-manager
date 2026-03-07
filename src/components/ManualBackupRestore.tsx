@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { generateBackupFile, importBackupFile } from '@/lib/backupUtils';
 import { useToast } from '@/hooks/use-toast';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useGoogleDriveElectron } from '@/hooks/useGoogleDriveElectron';
 import { browserDb } from '@/lib/browserDb';
 import { createSqliteBackup, parseSqliteBackup, sqliteBytesToBlob, blobToSqliteBytes } from '@/lib/sqliteBackup';
 
@@ -15,7 +16,13 @@ const ManualBackupRestore = () => {
     const [isImporting, setIsImporting] = useState(false);
     const { toast } = useToast();
 
-    // Google Drive Hook
+    // Google Drive Hook - use Electron version if available
+    const isElectron = typeof window !== 'undefined' && window.electronAPI;
+    const webGoogleDrive = useGoogleDrive();
+    const electronGoogleDrive = useGoogleDriveElectron();
+    
+    const googleDrive = isElectron ? electronGoogleDrive : webGoogleDrive;
+    
     const {
         isAuthenticated,
         isReady,
@@ -25,7 +32,7 @@ const ManualBackupRestore = () => {
         downloadFile,
         downloadFileAsBlob,
         listFiles
-    } = useGoogleDrive();
+    } = googleDrive;
 
     const handleExport = async () => {
         setIsExporting(true);

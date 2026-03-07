@@ -11,6 +11,7 @@ export const beams = sqliteTable('beams', {
     pricePerBeam: real('price_per_beam').notNull(),
     total: real('total').notNull(),
     qualityId: text('quality_id'),
+    yarnUsedKg: real('yarn_used_kg'), // Calculated: warpWeight × noOfTakas
     createdAt: integer('created_at').default((Date.now())),
     updatedAt: integer('updated_at').default((Date.now())),
 });
@@ -49,6 +50,7 @@ export const qualities = sqliteTable('qualities', {
     tars: real('tars'),
     beamRate: real('beam_rate'),
     beamPasarRate: real('beam_pasar_rate'),
+    warpWeight: real('warp_weight'), // Weight in kg for 1 taka (from textile calculations)
     createdAt: integer('created_at').default((Date.now())),
     updatedAt: integer('updated_at').default((Date.now())),
 });
@@ -69,6 +71,11 @@ export const sales = sqliteTable('sales', {
     status: text('status').notNull().default('pending'),
     type: text('type').notNull().default('spot'), // 'spot' | 'advance'
     qualityId: text('quality_id'),
+    paymentMethod: text('payment_method'), // 'RTGS' | 'Cheque' | 'Cash' | 'Other'
+    paidAmount: real('paid_amount'),
+    billNumbers: text('bill_numbers'),
+    paymentDate: text('payment_date'),
+    paymentNotes: text('payment_notes'),
     createdAt: integer('created_at').default((Date.now())),
     updatedAt: integer('updated_at').default((Date.now())),
 });
@@ -344,6 +351,37 @@ export const saleDeliveries = sqliteTable('sale_deliveries', {
     takas: real('takas').notNull(),
     meters: real('meters').notNull(),
     notes: text('notes'),
+    createdAt: integer('created_at').default((Date.now())),
+    updatedAt: integer('updated_at').default((Date.now())),
+});
+
+// Quality Costing table
+export const qualityCosting = sqliteTable('quality_costing', {
+    id: text('id').primaryKey(),
+    qualityId: text('quality_id').notNull(),
+    warpRate: real('warp_rate').notNull().default(0),
+    weftRate: real('weft_rate').notNull().default(0),
+    extraCosts: text('extra_costs', { mode: 'json' }).default('[]'), // Array of {label: string, amount: number}
+    createdAt: integer('created_at').default((Date.now())),
+    updatedAt: integer('updated_at').default((Date.now())),
+});
+
+// Overhead Entries table
+export const overheadEntries = sqliteTable('overhead_entries', {
+    id: text('id').primaryKey(),
+    month: text('month').notNull(), // Format: YYYY-MM
+    name: text('name').notNull(),
+    amount: real('amount').notNull(),
+    createdAt: integer('created_at').default((Date.now())),
+    updatedAt: integer('updated_at').default((Date.now())),
+});
+
+// Monthly Production table
+export const monthlyProduction = sqliteTable('monthly_production', {
+    id: text('id').primaryKey(),
+    month: text('month').notNull(), // Format: YYYY-MM
+    qualityId: text('quality_id').notNull(),
+    metersProduced: real('meters_produced').notNull(),
     createdAt: integer('created_at').default((Date.now())),
     updatedAt: integer('updated_at').default((Date.now())),
 });

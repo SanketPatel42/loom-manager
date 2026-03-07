@@ -4,13 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { storage as appStorage } from "@/lib/storage";
 import type { BeamPasar, Quality } from "@/lib/types";
-import { Plus, Pencil, Trash2, Trash, ArrowUpDown, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Trash, ArrowUpDown, Loader2, Calculator, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { useBeamPasar, useQualities } from "@/hooks/useAsyncStorage";
+import { calculateBeamPasarSalaries } from "@/utils/comprehensiveSalaryUtils";
 
 export default function BeamPasarPage() {
   const { data: beamPasars, loading: bpLoading, add, update, delete: deleteRecord, refresh } = useBeamPasar();
@@ -19,6 +20,8 @@ export default function BeamPasarPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [activeCycle, setActiveCycle] = useState<'1-15' | '16-30'>('1-15');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     beamNo: "",
@@ -138,6 +141,33 @@ export default function BeamPasarPage() {
     return [...beamPasars].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [beamPasars]);
 
+  // Calculate salary summary for the selected cycle and month
+  const salaryData = useMemo(() => {
+    const salaries = calculateBeamPasarSalaries(beamPasars, activeCycle, selectedMonth);
+    
+    // Group by rate to show summary
+    const rateGroups: Record<number, { count: number; totalAmount: number; entries: any[] }> = {};
+    salaries.forEach(salary => {
+      const rate = salary.ratePerBeam || 0;
+      if (!rateGroups[rate]) {
+        rateGroups[rate] = { count: 0, totalAmount: 0, entries: [] };
+      }
+      rateGroups[rate].entries.push(salary);
+    });
+
+    // Calculate count and total for each rate
+    Object.keys(rateGroups).forEach(rateKey => {
+      const rate = Number(rateKey);
+      const group = rateGroups[rate];
+      group.count = group.entries.length;
+      group.totalAmount = group.count * rate;
+    });
+
+    const totalAmount = Object.values(rateGroups).reduce((sum, group) => sum + group.totalAmount, 0);
+    
+    return { rateGroups, totalAmount, salaries };
+  }, [beamPasars, activeCycle, selectedMonth]);
+
   const columns = useMemo<ColumnDef<BeamPasar>[]>(
     () => [
       {
@@ -186,7 +216,17 @@ export default function BeamPasarPage() {
       {
         id: "amount",
         header: "Amount",
-        cell: ({ row }) => `₹${(row.original.ratePerBeam || 0).toFixed(2)}`
+        cell: ({ row }) => {
+          const rate = row.original.ratePerBeam || 0;
+          console.log("rates====",rate)
+          // Find how many beams have the same rate in the current filtered data
+          let sameRateBeams = sortedBeamPasars.filter(bp => 
+            bp.ratePerBeam == rate).length;
+            console.log("sameRateBeams",sameRateBeams)
+          let amount = sameRateBeams * rate;
+          console.log("Amount",amount)
+          return `₹${amount.toFixed(2)} (${sameRateBeams} × ₹${rate})`;
+        }
       },
       {
         id: "actions",
@@ -321,6 +361,87 @@ export default function BeamPasarPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Salary Summary Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calculator className="h-5 w-5" />
+            Beam Pasar Salary Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Cycle and Month Selection */}
+            <div className="flex gap-4 items-center">
+              <div className="space-y-2">
+                <Label>Month</Label>
+                <Input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cycle</Label>
+                <Select value={activeCycle} onValueChange={(value: '1-15' | '16-30') => setActiveCycle(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1-15">1-15</SelectItem>
+                    <SelectItem value="16-30">16-30</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Salary Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(salaryData.rateGroups).map(([rate, group]) => (
+                <Card key={rate} className="border-l-4 border-l-primary">
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
+                      <div className="text-sm text-muted-foreground">Rate: ₹{rate}</div>
+                      <div className="text-lg font-semibold">{group.count} beams</div>
+                      <div className="text-xl font-bold text-primary">₹{group.totalAmount.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {group.count} × ₹{rate} = ₹{group.totalAmount}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Total Summary */}
+            {salaryData.totalAmount > 0 && (
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="pt-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Total Salary for {activeCycle} cycle</div>
+                      <div className="text-2xl font-bold text-primary">₹{salaryData.totalAmount.toFixed(2)}</div>
+                    </div>
+                    <div className="text-right text-sm text-muted-foreground">
+                      <div>{Object.values(salaryData.rateGroups).reduce((sum, group) => sum + group.count, 0)} total beams</div>
+                      <div>Month: {new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {salaryData.totalAmount === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No beam pasar records found for the selected month and cycle.</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-6">
         <Card>

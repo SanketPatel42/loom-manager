@@ -54,7 +54,15 @@ export const calculateSalaries = (
     qualityData: Quality[],
     filterCycle: '1-15' | '16-30'
 ): WorkerSalary[] => {
+    console.log('=== calculateSalaries Debug ===');
+    console.log('Filter Cycle:', filterCycle);
+    console.log('Worker Profiles:', workerProfiles.length);
+    console.log('Quality Data:', qualityData.length);
+    
     const { assignments, gridData } = sheetData;
+    console.log('Assignments:', Object.keys(assignments).length);
+    console.log('Grid Data:', Object.keys(gridData).length);
+    
     const salaries: Record<string, WorkerSalary> = {};
     const workerQualityStats: Record<string, Record<string, { qualityName: string; rate: number; totalMeters: number; totalAmount: number }>> = {};
 
@@ -82,18 +90,21 @@ export const calculateSalaries = (
         workerQualityStats[workerId][qualityId].totalAmount += amount;
     };
 
+    let totalProcessedRows = 0;
+    let totalMatchingRows = 0;
+
     // Process each sheet
     for (let sheetNum = 1; sheetNum <= TOTAL_SHEETS; sheetNum++) {
         const sheetKey = sheetNum.toString();
         const assignment = assignments[sheetKey];
         const grid = gridData[sheetKey];
 
-        if (!assignment || !grid) continue;
+        if (!assignment || !grid) {
+            console.log(`Sheet ${sheetNum}: No assignment or grid data`);
+            continue;
+        }
 
-        const cycle = assignment.cycle;
-
-        // Filter by cycle
-        if (cycle !== filterCycle) continue;
+        console.log(`Sheet ${sheetNum}: Processing ${grid.length} rows`);
 
         const startMachine = (sheetNum - 1) * MACHINES_PER_SHEET + 1;
         const endMachine = sheetNum * MACHINES_PER_SHEET;
@@ -101,9 +112,21 @@ export const calculateSalaries = (
         // Process each machine
         for (let machineIdx = 1; machineIdx <= MACHINES_PER_SHEET; machineIdx++) {
             grid.forEach((row: any) => {
+                totalProcessedRows++;
                 const dayNum = row.day;
+
+                // Filter by day number based on filterCycle
+                const matchesCycle = filterCycle === '1-15' ? dayNum <= 15 : dayNum > 15;
+                if (!matchesCycle) return;
+                
+                totalMatchingRows++;
+
                 const dayCell = getCellData(row[`machine${machineIdx}_day`]);
                 const nightCell = getCellData(row[`machine${machineIdx}_night`]);
+
+                if (dayCell.value > 0 || nightCell.value > 0) {
+                    console.log(`Found production data: Sheet ${sheetNum}, Machine ${machineIdx}, Day ${dayNum}, Day: ${dayCell.value}, Night: ${nightCell.value}`);
+                }
 
                 const dayWorkerId = getWorkerForDay(assignment, 'day', dayNum);
                 const nightWorkerId = getWorkerForDay(assignment, 'night', dayNum);
@@ -140,7 +163,7 @@ export const calculateSalaries = (
                         salaries[dayWorkerId] = {
                             workerId: dayWorkerId,
                             workerName: worker?.name || 'Unknown',
-                            cycle,
+                            cycle: filterCycle,
                             sheets: [],
                             totalDaySalary: 0,
                             totalNightSalary: 0,
@@ -179,7 +202,7 @@ export const calculateSalaries = (
                         salaries[nightWorkerId] = {
                             workerId: nightWorkerId,
                             workerName: worker?.name || 'Unknown',
-                            cycle,
+                            cycle: filterCycle,
                             sheets: [],
                             totalDaySalary: 0,
                             totalNightSalary: 0,
@@ -212,6 +235,11 @@ export const calculateSalaries = (
         }
     }
 
+    console.log('Processing summary:');
+    console.log('- Total rows processed:', totalProcessedRows);
+    console.log('- Rows matching cycle:', totalMatchingRows);
+    console.log('- Workers found:', Object.keys(salaries).length);
+
     // Convert stats to array and assign to salaries
     Object.keys(salaries).forEach(workerId => {
         const stats = workerQualityStats[workerId];
@@ -220,5 +248,7 @@ export const calculateSalaries = (
         }
     });
 
-    return Object.values(salaries);
+    const result = Object.values(salaries);
+    console.log('Final result:', result.length, 'workers');
+    return result;
 };

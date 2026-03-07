@@ -5,7 +5,7 @@ import { ClientSideRowModelModule } from '@ag-grid-community/client-side-row-mod
 import '@ag-grid-community/styles/ag-grid.css';
 import '@ag-grid-community/styles/ag-theme-alpine.css';
 import { Button } from "@/components/ui/button";
-import { storage } from "@/lib/localStorage";
+import { storage } from "@/lib/storage";
 import { useWorkerProfiles, useQualities, useWorkerSheetData } from "@/hooks/useAsyncStorage";
 import type { WorkerProfile, Quality, WorkerSheetData, CellColorType, CellData, ColorQualityMapping, MachineSheetData, SheetAssignment, WorkerSplit } from "@/lib/types";
 import { Save, Download, Undo, Redo, Copy, Palette, PaintBucket, Maximize2, Minimize2, Trash2, Plus, X, Calendar as CalendarIcon, Split, Info, BarChart3, ZoomIn, ZoomOut, Eye, EyeOff, TrendingUp, Activity, Loader2, Settings2, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
@@ -63,7 +63,9 @@ const SplitManagerDialog = ({
   const [endDay, setEndDay] = useState<number>(cycle === '1-15' ? 15 : 30);
 
   useEffect(() => {
-    setLocalSplits(splits || []);
+    if (open) {
+      setLocalSplits(splits || []);
+    }
   }, [splits, open]);
 
   const handleAddSplit = () => {
@@ -390,63 +392,6 @@ export default function Workers() {
 
     // Set as active paint color
     setActivePaintColor(color);
-
-    // Also apply to currently selected cells if any
-    const api = gridRef.current?.api;
-    if (api) {
-      const selectedRanges = api.getCellRanges();
-      if (selectedRanges && selectedRanges.length > 0) {
-        applyColorToSelectedCells(color);
-      }
-    }
-  };
-
-  // Apply color to selected cells
-  const applyColorToSelectedCells = (color: CellColorType) => {
-    const api = gridRef.current?.api;
-    if (!api) return;
-
-    const selectedRanges = api.getCellRanges();
-    if (!selectedRanges || selectedRanges.length === 0) return;
-
-    const updatedData = [...gridData[activeSheet]];
-    let cellsUpdated = 0;
-
-    selectedRanges.forEach(range => {
-      if (!range.startRow || !range.endRow) return;
-
-      const startRow = Math.min(range.startRow.rowIndex, range.endRow.rowIndex);
-      const endRow = Math.max(range.startRow.rowIndex, range.endRow.rowIndex);
-
-      range.columns.forEach(col => {
-        const field = col.getColId();
-        if (field === 'day') return;
-
-        for (let rowIndex = startRow; rowIndex <= endRow; rowIndex++) {
-          const row = updatedData[rowIndex];
-          if (row) {
-            const cellData = getCellData(row[field]);
-            // Only update if color is different
-            if (cellData.color !== color) {
-              row[field] = { ...cellData, color };
-              cellsUpdated++;
-            }
-          }
-        }
-      });
-    });
-
-    if (cellsUpdated > 0) {
-      setGridData(prev => ({ ...prev, [activeSheet]: updatedData }));
-      saveToStorage(sheetAssignments, { ...gridData, [activeSheet]: updatedData });
-      api.refreshCells({ force: true });
-
-      const colorName = AVAILABLE_COLORS.find(c => c.value === color)?.name || 'color';
-      toast({
-        title: `✓ Color applied`,
-        description: `${colorName} applied to ${cellsUpdated} cell(s)`
-      });
-    }
   };
 
   // Handle cell click for paint mode
@@ -1257,12 +1202,12 @@ export default function Workers() {
                     ensureDomOrder={true}
                     suppressHorizontalScroll={false}
                     suppressMenuHide={true}
-                    rowSelection="multiple"
+                    rowSelection="single"
                     enterNavigatesVertically={true}
                     enterNavigatesVerticallyAfterEdit={true}
                     suppressMovableColumns={true}
-                    enableRangeSelection={true}
-                    enableFillHandle={true}
+                    enableRangeSelection={false}
+                    enableFillHandle={false}
                     undoRedoCellEditing={true}
                     undoRedoCellEditingLimit={10}
                     stopEditingWhenCellsLoseFocus={true}

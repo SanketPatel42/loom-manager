@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { asyncStorage } from '@/lib/storage';
 import { emitDataChange, onDataChange } from '@/lib/events';
 import { useEffect } from 'react';
+import { useFactory } from '@/lib/factoryContext';
 import type {
   Beam,
   Taka,
@@ -43,12 +44,14 @@ export function useAsyncStorage<T extends { id?: string }>(
   deleteMethod: (id: string) => Promise<void>
 ) {
   const queryClient = useQueryClient();
-  const queryKey = [entityName];
+  const { activeFactory } = useFactory();
+  const queryKey = [entityName, activeFactory?.id];
 
   // Fetch data
   const { data = [], isLoading: loading, error, refetch: refresh } = useQuery({
     queryKey,
     queryFn: getMethod,
+    enabled: !!activeFactory?.id,
   });
 
   // Listen for external changes (from other windows or direct storage calls)
@@ -328,7 +331,8 @@ export const useSaleDeliveries = () => useAsyncStorage<SaleDelivery>(
 // Special hook for worker sheet data (single record)
 export function useWorkerSheetData() {
   const queryClient = useQueryClient();
-  const queryKey = ['workerSheetData'];
+  const { activeFactory } = useFactory();
+  const queryKey = ['workerSheetData', activeFactory?.id];
 
   const { data = null, isLoading: loading, error, refetch: refresh } = useQuery({
     queryKey,
@@ -351,7 +355,7 @@ export function useWorkerSheetData() {
     save: (newData: WorkerSheetData) => mutation.mutateAsync(newData),
     clear: async () => {
       await asyncStorage.clearWorkerSheetData();
-      queryClient.invalidateQueries({ queryKey: ['workerSheetData'] });
+      queryClient.invalidateQueries({ queryKey });
     },
     isSaving: mutation.isPending,
   };

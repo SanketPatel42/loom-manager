@@ -22,6 +22,7 @@ export default function Qualities() {
     tars: 0,
     beamRate: 0,
     beamPasarRate: 0,
+    warpWeight: 0,
     epi: 0,
     ppi: 0,
     danier: "",
@@ -66,6 +67,7 @@ export default function Qualities() {
       tars: quality.tars || 0,
       beamRate: quality.beamRate || 0,
       beamPasarRate: quality.beamPasarRate || 0,
+      warpWeight: quality.warpWeight || 0,
       epi: quality.epi || 0,
       ppi: quality.ppi || 0,
       danier: quality.danier || "",
@@ -99,6 +101,7 @@ export default function Qualities() {
       tars: 0,
       beamRate: 0,
       beamPasarRate: 0,
+      warpWeight: 0,
       epi: 0,
       ppi: 0,
       danier: "",
@@ -264,7 +267,19 @@ export default function Qualities() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="warpWeight">Warp Weight (kg/taka)</Label>
+                  <Input
+                    id="warpWeight"
+                    type="number"
+                    step="0.001"
+                    value={formData.warpWeight || ''}
+                    onChange={(e) => setFormData({ ...formData, warpWeight: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.000"
+                  />
+                  <p className="text-xs text-muted-foreground">Weight in kg for 1 taka</p>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="epi">EPI (Optional)</Label>
                   <Input

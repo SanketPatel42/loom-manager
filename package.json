@@ -2,7 +2,7 @@
   "name": "vite_react_shadcn_ts",
   "private": true,
   "version": "1.0.0",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -88,6 +88,7 @@
     "@types/pg": "^8.10.9",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
+    "@types/semver": "^7.7.1",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.1",
@@ -113,14 +114,14 @@
     "productName": "Grey Loom Manager",
     "asar": true,
     "asarUnpack": [
-      "**/*.node"
+      "**/*.node",
+      "drizzle/**/*"
     ],
     "compression": "maximum",
     "files": [
       "dist-electron/**/*",
       "dist/**/*",
       "drizzle/**/*",
-      "!node_modules/**/*",
       "!**/*.md",
       "!**/*.map"
     ],
@@ -159,8 +160,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "sanket",
-        "repo": "grey-loom-manager"
+        "owner": "SanketPatel42",
+        "repo": "loom-manager"
       }
     ],
     "dmg": {

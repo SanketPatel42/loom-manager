@@ -15,6 +15,7 @@ export interface Beam {
     pricePerBeam: number;
     total: number;
     qualityId?: string;
+    yarnUsedKg?: number; // Calculated: warpWeight × noOfTakas
 }
 
 export interface Taka {
@@ -58,6 +59,7 @@ export interface Quality {
     tars: number;
     beamRate: number;
     beamPasarRate: number;
+    warpWeight?: number; // Weight in kg for 1 taka (from textile calculations)
 }
 
 export interface Sale {
@@ -429,6 +431,9 @@ export const TABLE_NAMES = {
     yarnConsumptions: 'yarnConsumptions',
     purchaseDeliveries: 'purchaseDeliveries',
     saleDeliveries: 'saleDeliveries',
+    qualityCosting: 'quality_costing',
+    overheadEntries: 'overhead_entries',
+    monthlyProduction: 'monthly_production',
 } as const;
 
 export type TableName = keyof typeof TABLE_NAMES;

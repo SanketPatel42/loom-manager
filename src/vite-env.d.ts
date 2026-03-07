@@ -10,9 +10,11 @@ interface ElectronAPI {
 
     // SQLite
     dbGet: (factory: string, table: string) => Promise<any[]>;
-    dbAdd: (factory: string, table: string, item: any) => Promise<boolean>;
+    dbAdd: (factory: string, table: string, item: any) => Promise<{ success: boolean; error?: string }>;
     dbUpdate: (factory: string, table: string, item: any) => Promise<boolean>;
     dbDelete: (factory: string, table: string, id: string) => Promise<boolean>;
+    dbClearTable: (factory: string, table: string) => Promise<boolean>;
+    getDbLogs: () => Promise<string>;
     migrateJsonToSqlite: () => Promise<{ success: boolean; count?: number; error?: string }>;
 
     // Encryption
