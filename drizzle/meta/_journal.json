@@ -29,6 +29,48 @@
       "when": 1772352439219,
       "tag": "0003_nice_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1772500000000,
+      "tag": "0004_add_sales_payment_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1772600000000,
+      "tag": "0005_add_warp_weight_to_qualities",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1772600001000,
+      "tag": "0006_add_yarn_used_kg_to_beams",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1772700000000,
+      "tag": "0007_add_quality_costing",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1772800000000,
+      "tag": "0008_add_overhead_costing",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1772900000000,
+      "tag": "0009_add_monthly_salary_records",
+      "breakpoints": true
     }
   ]
 }

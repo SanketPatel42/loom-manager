@@ -22,9 +22,11 @@ export default function Qualities() {
     tars: 0,
     beamRate: 0,
     beamPasarRate: 0,
+    warpWeight: 0,
     epi: 0,
     ppi: 0,
     danier: "",
+    description: "",
   });
   const { toast } = useToast();
 
@@ -33,10 +35,24 @@ export default function Qualities() {
     setSubmitting(true);
 
     try {
+      // Validate required fields
+      if (!formData.name || !formData.ratePerMeter) {
+        throw new Error('Quality Name and Rate per Meter are required');
+      }
+
       const quality: Quality = {
         id: editingId || Date.now().toString(),
-        ...formData,
-        createdAt: new Date().toISOString(),
+        name: formData.name,
+        ratePerMeter: formData.ratePerMeter,
+        tars: formData.tars,
+        beamRate: formData.beamRate,
+        beamPasarRate: formData.beamPasarRate,
+        description: formData.description || undefined,
+        epi: formData.epi || undefined,
+        ppi: formData.ppi || undefined,
+        danier: formData.danier || undefined,
+        warpWeight: formData.warpWeight || undefined,
+        // Don't include createdAt/updatedAt - let the database handle these
       };
 
       if (editingId) {
@@ -49,9 +65,11 @@ export default function Qualities() {
 
       resetForm();
     } catch (error) {
+      console.error('Error saving quality:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save quality. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to save quality. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -66,9 +84,11 @@ export default function Qualities() {
       tars: quality.tars || 0,
       beamRate: quality.beamRate || 0,
       beamPasarRate: quality.beamPasarRate || 0,
+      warpWeight: quality.warpWeight || 0,
       epi: quality.epi || 0,
       ppi: quality.ppi || 0,
       danier: quality.danier || "",
+      description: quality.description || "",
     });
     setEditingId(quality.id);
     setIsAdding(true);
@@ -99,9 +119,11 @@ export default function Qualities() {
       tars: 0,
       beamRate: 0,
       beamPasarRate: 0,
+      warpWeight: 0,
       epi: 0,
       ppi: 0,
       danier: "",
+      description: "",
     });
     setIsAdding(false);
     setEditingId(null);
@@ -264,7 +286,19 @@ export default function Qualities() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="warpWeight">Warp Weight (kg/taka)</Label>
+                  <Input
+                    id="warpWeight"
+                    type="number"
+                    step="0.001"
+                    value={formData.warpWeight || ''}
+                    onChange={(e) => setFormData({ ...formData, warpWeight: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.000"
+                  />
+                  <p className="text-xs text-muted-foreground">Weight in kg for 1 taka</p>
+                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="epi">EPI (Optional)</Label>
                   <Input

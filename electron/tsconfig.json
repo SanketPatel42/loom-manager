@@ -5,7 +5,8 @@
         "outDir": "../dist-electron",
         "esModuleInterop": true,
         "sourceMap": true,
-        "strict": true
+        "strict": true,
+        "skipLibCheck": true
     },
     "include": [
         "main.ts",

@@ -63,10 +63,17 @@ export default function Beams() {
     setSubmitting(true);
 
     try {
+      // Calculate yarn used in kg
+      const selectedQuality = qualities.find(q => q.id === formData.qualityId);
+      const yarnUsedKg = selectedQuality?.warpWeight 
+        ? selectedQuality.warpWeight * formData.noOfTakas 
+        : undefined;
+
       const beam: Beam = {
         id: editingId || Date.now().toString(),
         ...formData,
-        total: 0, // Will be recalculated
+        total: formData.noOfTakas * formData.pricePerBeam,
+        yarnUsedKg,
       };
 
       if (editingId) {

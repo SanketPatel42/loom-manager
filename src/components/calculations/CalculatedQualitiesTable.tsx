@@ -9,10 +9,36 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calculator, Info, Ruler, Scale } from "lucide-react";
+import { Calculator, Info, Ruler, Scale, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CalculatedQualitiesTable() {
-    const { data: qualities, loading } = useQualities();
+    const { data: qualities, loading, update } = useQualities();
+    const { toast } = useToast();
+
+    const handleSyncWarpWeight = async (qualityId: string, warpWeightPerTaka: number) => {
+        try {
+            const quality = qualities.find(q => q.id === qualityId);
+            if (!quality) return;
+
+            await update(qualityId, {
+                ...quality,
+                warpWeight: warpWeightPerTaka
+            });
+
+            toast({
+                title: "Warp weight synced",
+                description: `Updated ${quality.name} with calculated warp weight: ${warpWeightPerTaka.toFixed(3)} kg/taka`
+            });
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to sync warp weight",
+                variant: "destructive"
+            });
+        }
+    };
 
     const parseDenier = (denierStr: string | undefined): number | null => {
         if (!denierStr) return null;
@@ -112,19 +138,20 @@ export default function CalculatedQualitiesTable() {
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                <TableHead className="font-bold">Quality Name</TableHead>
+                                <TableHead className="text-center font-bold">Quality Name</TableHead>
                                 <TableHead className="text-center font-bold">Details (E/P/D)</TableHead>
                                 <TableHead className="text-center font-bold">Est. Width (in)</TableHead>
                                 <TableHead className="text-center font-bold">Warp Wt (kg)</TableHead>
                                 <TableHead className="text-center font-bold">Weft Wt (kg)</TableHead>
                                 <TableHead className="text-center font-bold">Total Wt (kg)</TableHead>
                                 <TableHead className="text-center font-bold">GSM</TableHead>
+                                <TableHead className="text-center font-bold">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {calculatedData.map((data) => (
                                 <TableRow key={data.id} className="hover:bg-primary/5 transition-colors">
-                                    <TableCell className="font-medium">{data.name}</TableCell>
+                                    <TableCell className="font-medium text-center">{data.name}</TableCell>
                                     <TableCell className="text-center text-xs text-muted-foreground">
                                         {data.epi}/{data.ppi} | {data.danier}D
                                     </TableCell>
@@ -145,6 +172,19 @@ export default function CalculatedQualitiesTable() {
                                             </span>
                                         ) : "-"}
                                     </TableCell>
+                                    <TableCell className="text-center">
+                                        {data.warpWeight ? (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleSyncWarpWeight(data.id, parseFloat(data.warpWeight!))}
+                                                className="h-7 text-xs"
+                                            >
+                                                <RefreshCw className="h-3 w-3 mr-1" />
+                                                Sync
+                                            </Button>
+                                        ) : "-"}
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -162,6 +202,9 @@ export default function CalculatedQualitiesTable() {
                             </p>
                             <p>
                                 Formulas: Warp = (D * 100 * Tars) / 9M | Weft = (Width * PPI * 100 * D) / 9M
+                            </p>
+                            <p className="text-blue-600 dark:text-blue-400 font-medium">
+                                💡 Click "Sync" to save the Warp Wt value to the quality for automatic yarn usage tracking in beam production.
                             </p>
 
                         </div>

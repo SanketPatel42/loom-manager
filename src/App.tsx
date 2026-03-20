@@ -21,6 +21,7 @@ import Stock from "./pages/Stock";
 import Qualities from "./pages/Qualities";
 import BeamPasar from "./pages/BeamPasar";
 import TextileCalculations from "./pages/TextileCalculations";
+import Costing from "./pages/Costing";
 import Settings from "./pages/Settings";
 import Notes from "./pages/Notes";
 import NotFound from "./pages/NotFound";
@@ -67,6 +68,7 @@ const AppContent = () => {
       <Route path="/stock" element={<Layout><Stock /></Layout>} />
       <Route path="/qualities" element={<Layout><Qualities /></Layout>} />
       <Route path="/textile-calculations" element={<Layout><TextileCalculations /></Layout>} />
+      <Route path="/costing" element={<Layout><Costing /></Layout>} />
       <Route path="/beam-pasar" element={<Layout><BeamPasar /></Layout>} />
       <Route path="/notes" element={<Layout><Notes /></Layout>} />
       <Route path="/settings" element={<Layout><Settings /></Layout>} />

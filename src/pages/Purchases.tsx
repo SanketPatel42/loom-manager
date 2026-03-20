@@ -476,115 +476,7 @@ export default function Purchases() {
           </Button>
         </div>
       </div>
-
-      <div className="grid gap-6 md:grid-cols-3 card-grid">
-        <Card className="animated-card stat-card stat-card-blue border-none shadow-lg bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-blue-600/70">Total Ordered</CardTitle>
-            <div className="icon-container icon-blue">
-              <ShoppingBag className="h-5 w-5" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-0.5">
-              <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{(totalYarnKg / 1000).toFixed(3)} <span className="text-xs font-medium text-muted-foreground">tons</span></p>
-              {totalBeams > 0 && <p className="text-sm font-semibold text-blue-500/80">{totalBeams} Beams</p>}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="animated-card stat-card stat-card-purple border-none shadow-lg bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-purple-600/70">Total Delivered</CardTitle>
-            <div className="icon-container icon-purple">
-              <Truck className="h-5 w-5" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-0.5">
-              <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">{(totalYarnDeliveredKg / 1000).toFixed(3)} <span className="text-xs font-medium text-muted-foreground">tons</span></p>
-              {totalBeams > 0 && <p className="text-sm font-semibold text-purple-500/80">{totalBeamsDelivered} Beams</p>}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="animated-card stat-card stat-card-green border-none shadow-lg bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-green-600/70">Total Amount</CardTitle>
-            <div className="icon-container icon-green">
-              <Coins className="h-5 w-5" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-700 dark:text-green-400">₹{Math.round(totalAmount).toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-1">{purchases.length} transactions</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Denier & Rate wise breakdown (Active only) */}
-      {activeDanierTotals.length > 0 && (
-        <Card className="shadow-lg overflow-hidden">
-          <CardHeader className="pb-4 bg-muted/30">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" /> Active Orders Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {activeDanierTotals
-                .sort((a, b) => {
-                  const getDanierValue = (danier: string) => {
-                    const match = danier.match(/\d+/);
-                    return match ? parseInt(match[0]) : 0;
-                  };
-                  return getDanierValue(a.danier) - getDanierValue(b.danier) || a.rate - b.rate;
-                })
-                .map((totals) => (
-                  <div key={`${totals.danier}-${totals.rate}`} className="p-4 border rounded-xl bg-card hover:border-primary/30 transition-all shadow-sm hover:shadow-md cursor-default">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <p className="font-bold text-sm">{totals.danier}</p>
-                        <p className="text-sm font-semibold text-primary mt-0.5">₹{totals.rate.toFixed(2)} / kg</p>
-                      </div>
-                      <Badge variant="secondary" className="text-[10px] font-semibold">
-                        ACTIVE
-                      </Badge>
-                    </div>
-
-                    <div className="flex justify-between items-end mb-3">
-                      <div>
-                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide mb-1">Ordered</p>
-                        <p className="text-lg font-bold">{totals.kg.toFixed(0)} <span className="text-xs font-medium text-muted-foreground">kg</span></p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide mb-1">Delivered</p>
-                        <p className="text-lg font-bold text-purple-600">{totals.deliveredKg.toFixed(0)} <span className="text-xs font-medium text-muted-foreground">kg</span></p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-1000 ease-out"
-                          style={{ width: `${Math.min(100, (totals.deliveredKg / totals.kg) * 100)}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <p className="text-xs font-semibold text-orange-600 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" /> {Math.max(0, totals.kg - totals.deliveredKg).toFixed(0)} kg pending
-                        </p>
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          {Math.round((totals.deliveredKg / totals.kg) * 100)}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {isAdding && (
+     {isAdding && (
         <Card className="border border-primary/20 shadow-lg animate-in fade-in slide-in-from-top-4 duration-500 overflow-hidden">
           <CardHeader className="bg-primary/5 py-4">
             <CardTitle className="text-lg font-bold">{editingId ? "Edit Purchase Record" : "Create New Purchase"}</CardTitle>
@@ -748,6 +640,114 @@ export default function Purchases() {
           </CardContent>
         </Card>
       )}
+      <div className="grid gap-6 md:grid-cols-3 card-grid">
+        <Card className="animated-card stat-card stat-card-blue border-none shadow-lg bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-blue-600/70">Total Ordered</CardTitle>
+            <div className="icon-container icon-blue">
+              <ShoppingBag className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-0.5">
+              <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{(totalYarnKg / 1000).toFixed(3)} <span className="text-xs font-medium text-muted-foreground">tons</span></p>
+              {totalBeams > 0 && <p className="text-sm font-semibold text-blue-500/80">{totalBeams} Beams</p>}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="animated-card stat-card stat-card-purple border-none shadow-lg bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-purple-600/70">Total Delivered</CardTitle>
+            <div className="icon-container icon-purple">
+              <Truck className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-0.5">
+              <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">{(totalYarnDeliveredKg / 1000).toFixed(3)} <span className="text-xs font-medium text-muted-foreground">tons</span></p>
+              {totalBeams > 0 && <p className="text-sm font-semibold text-purple-500/80">{totalBeamsDelivered} Beams</p>}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="animated-card stat-card stat-card-green border-none shadow-lg bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide text-green-600/70">Total Amount</CardTitle>
+            <div className="icon-container icon-green">
+              <Coins className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-green-700 dark:text-green-400">₹{Math.round(totalAmount).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">{purchases.length} transactions</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Denier & Rate wise breakdown (Active only) */}
+      {activeDanierTotals.length > 0 && (
+        <Card className="shadow-lg overflow-hidden">
+          <CardHeader className="pb-4 bg-muted/30">
+            <CardTitle className="text-lg font-bold flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" /> Active Orders Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {activeDanierTotals
+                .sort((a, b) => {
+                  const getDanierValue = (danier: string) => {
+                    const match = danier.match(/\d+/);
+                    return match ? parseInt(match[0]) : 0;
+                  };
+                  return getDanierValue(a.danier) - getDanierValue(b.danier) || a.rate - b.rate;
+                })
+                .map((totals) => (
+                  <div key={`${totals.danier}-${totals.rate}`} className="p-4 border rounded-xl bg-card hover:border-primary/30 transition-all shadow-sm hover:shadow-md cursor-default">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="font-bold text-sm">{totals.danier}</p>
+                        <p className="text-sm font-semibold text-primary mt-0.5">₹{totals.rate.toFixed(2)} / kg</p>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] font-semibold">
+                        ACTIVE
+                      </Badge>
+                    </div>
+
+                    <div className="flex justify-between items-end mb-3">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide mb-1">Ordered</p>
+                        <p className="text-lg font-bold">{totals.kg.toFixed(0)} <span className="text-xs font-medium text-muted-foreground">kg</span></p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide mb-1">Delivered</p>
+                        <p className="text-lg font-bold text-purple-600">{totals.deliveredKg.toFixed(0)} <span className="text-xs font-medium text-muted-foreground">kg</span></p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-1000 ease-out"
+                          style={{ width: `${Math.min(100, (totals.deliveredKg / totals.kg) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs font-semibold text-orange-600 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" /> {Math.max(0, totals.kg - totals.deliveredKg).toFixed(0)} kg pending
+                        </p>
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          {Math.round((totals.deliveredKg / totals.kg) * 100)}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+     
 
       <Card className="shadow-lg overflow-hidden">
         <CardHeader className="bg-muted/30">

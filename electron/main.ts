@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { autoUpdater } from 'electron-updater';
@@ -11,6 +11,8 @@ const createWindow = () => {
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 800,
+        show: false, // Don't show window until ready
+        backgroundColor: '#ffffff', // Set background color to match your app
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
@@ -26,13 +28,26 @@ const createWindow = () => {
         mainWindow.loadURL('http://localhost:5173');
         mainWindow.webContents.openDevTools();
     } else {
-        // In production, use process.resourcesPath to correctly locate the app.asar
-        // The dist folder is at app.asar/dist
-        // const indexPath = path.join(process.resourcesPath, 'app.asar', 'dist', 'index.html');
-        const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+        // In production, the compiled main.js is in dist-electron/electron/
+        // To reach dist/ index.html, we need to go up two levels
+        const indexPath = path.join(__dirname, '..', '..', 'dist', 'index.html');
         console.log('Loading index.html from:', indexPath);
         mainWindow.loadFile(indexPath);
     }
+
+    // Show window when ready to avoid white screen
+    mainWindow.once('ready-to-show', () => {
+        mainWindow?.show();
+    });
+
+    // Handle external links (like WhatsApp, Gmail) to open in default browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('https://')) {
+            shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
 };
 
 // This method will be called when Electron has finished
@@ -70,7 +85,7 @@ if (!fs.existsSync(APP_DATA_PATH)) {
     fs.mkdirSync(APP_DATA_PATH, { recursive: true });
 }
 
-import { getDb, isValidTable, schema } from './db';
+import { getDb, isValidTable, schema, getSchemaTableKey } from './db';
 import { eq } from 'drizzle-orm';
 import { encryptionManager, SENSITIVE_FIELDS } from './encryption';
 
@@ -111,9 +126,11 @@ function setupIpcHandlers() {
         try {
             if (!isValidTable(tableName)) throw new Error(`Invalid table: ${tableName}`);
             const db = getDb(factory);
+            const schemaKey = getSchemaTableKey(tableName);
             // @ts-ignore - dynamic table access
-            const table = schema[tableName];
+            const table = schema[schemaKey] || schema[tableName];
             const result = await db.select().from(table).all();
+            console.log(`[DB] Retrieved ${result.length} records from ${tableName} (factory: ${factory})`);
             // Decrypt sensitive fields on read
             return encryptionManager.decryptRecords(tableName, result);
         } catch (e: any) {
@@ -124,17 +141,62 @@ function setupIpcHandlers() {
 
     ipcMain.handle('db-add', async (event, factory: string, tableName: string, item: any) => {
         try {
-            if (!isValidTable(tableName)) throw new Error(`Invalid table: ${tableName}`);
+            console.log(`[DB] db-add called: factory=${factory}, table=${tableName}, item keys=${Object.keys(item).join(',')}`);
+
+            if (!isValidTable(tableName)) {
+                const validTables = Object.keys(schema);
+                throw new Error(`Invalid table: ${tableName}. Valid tables: ${validTables.join(', ')}`);
+            }
+
             const db = getDb(factory);
-            // @ts-ignore
-            const table = schema[tableName];
+            const schemaKey = getSchemaTableKey(tableName);
+            console.log(`[DB] Schema key for ${tableName}: ${schemaKey}`);
+
+            const table = (schema as any)[schemaKey] || (schema as any)[tableName];
+            if (!table) {
+                const validTables = Object.keys(schema);
+                throw new Error(`Table object not found for: ${tableName} (key: ${schemaKey}). Available: ${validTables.join(', ')}`);
+            }
+
             // Encrypt sensitive fields before writing
             const encryptedItem = encryptionManager.encryptRecord(tableName, item);
-            await db.insert(table).values(encryptedItem).run();
-            return true;
+            console.log(`[DB] Encrypted item keys: ${Object.keys(encryptedItem).join(',')}`);
+
+            // Add better error handling for Windows file locking issues
+            try {
+                await db.insert(table).values(encryptedItem).run();
+                console.log(`[DB] Successfully inserted into ${tableName}`);
+            } catch (dbError: any) {
+                console.error(`[DB] Insert error for ${tableName}:`, dbError);
+                // Check if it's a file locking issue on Windows
+                if (dbError.message && (dbError.message.includes('database is locked') || dbError.message.includes('SQLITE_BUSY'))) {
+                    console.log(`[DB] Database locked, retrying...`);
+                    // Retry once after a short delay
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await db.insert(table).values(encryptedItem).run();
+                } else {
+                    throw dbError;
+                }
+            }
+
+            return { success: true };
         } catch (e: any) {
             console.error(`[DB] Error in db-add ${tableName}:`, e);
-            return false;
+            const logPath = path.join(app.getPath('userData'), 'db-error.log');
+            fs.appendFileSync(logPath, `[${new Date().toISOString()}] Add ${tableName} error: ${e.message}\n${e.stack}\n`);
+            return { success: false, error: e.message };
+        }
+    });
+
+    ipcMain.handle('get-db-logs', async () => {
+        try {
+            const logPath = path.join(app.getPath('userData'), 'db-error.log');
+            if (fs.existsSync(logPath)) {
+                return fs.readFileSync(logPath, 'utf-8');
+            }
+            return "No logs found.";
+        } catch (e) {
+            return "Error reading logs: " + String(e);
         }
     });
 
@@ -143,11 +205,24 @@ function setupIpcHandlers() {
             if (!isValidTable(tableName)) throw new Error(`Invalid table: ${tableName}`);
             if (!item.id) throw new Error('Item must have an ID');
             const db = getDb(factory);
+            const schemaKey = getSchemaTableKey(tableName);
             // @ts-ignore
-            const table = schema[tableName];
+            const table = schema[schemaKey] || schema[tableName];
             // Encrypt sensitive fields before writing
             const encryptedItem = encryptionManager.encryptRecord(tableName, item);
-            await db.update(table).set(encryptedItem).where(eq(table.id, item.id)).run();
+
+            try {
+                await db.update(table).set(encryptedItem).where(eq(table.id, item.id)).run();
+            } catch (dbError: any) {
+                // Retry on database lock
+                if (dbError.message && (dbError.message.includes('database is locked') || dbError.message.includes('SQLITE_BUSY'))) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await db.update(table).set(encryptedItem).where(eq(table.id, item.id)).run();
+                } else {
+                    throw dbError;
+                }
+            }
+
             return true;
         } catch (e: any) {
             console.error(`[DB] Error in db-update ${tableName}:`, e);
@@ -159,8 +234,9 @@ function setupIpcHandlers() {
         try {
             if (!isValidTable(tableName)) throw new Error(`Invalid table: ${tableName}`);
             const db = getDb(factory);
+            const schemaKey = getSchemaTableKey(tableName);
             // @ts-ignore
-            const table = schema[tableName];
+            const table = schema[schemaKey] || schema[tableName];
             await db.delete(table).where(eq(table.id, id)).run();
             return true;
         } catch (e: any) {
@@ -173,8 +249,9 @@ function setupIpcHandlers() {
         try {
             if (!isValidTable(tableName)) throw new Error(`Invalid table: ${tableName}`);
             const db = getDb(factory);
+            const schemaKey = getSchemaTableKey(tableName);
             // @ts-ignore
-            const table = schema[tableName];
+            const table = schema[schemaKey] || schema[tableName];
             await db.delete(table).run();
             return true;
         } catch (e: any) {
@@ -454,6 +531,86 @@ function setupIpcHandlers() {
 
     ipcMain.handle('quit-and-install', () => {
         autoUpdater.quitAndInstall();
+    });
+
+    // ── Google OAuth Handler ───────────────────────────────────────────
+
+    ipcMain.handle('google-auth', async (event, { clientId, scopes }) => {
+        return new Promise((resolve, reject) => {
+            // Use localhost redirect URI - this needs to be configured in Google Cloud Console
+            const redirectUri = 'http://localhost:3000/oauth/callback';
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${clientId}&` +
+                `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+                `response_type=code&` +
+                `scope=${encodeURIComponent(scopes.join(' '))}&` +
+                `access_type=offline&` +
+                `prompt=consent`;
+
+            // Create a new window for OAuth
+            const authWindow = new BrowserWindow({
+                width: 500,
+                height: 600,
+                show: true,
+                modal: true,
+                parent: mainWindow || undefined,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true
+                }
+            });
+
+            authWindow.loadURL(authUrl);
+
+            // Listen for navigation to redirect URI
+            authWindow.webContents.on('will-navigate', async (event, navigationUrl) => {
+                const url = new URL(navigationUrl);
+
+                if (url.hostname === 'localhost' && url.pathname === '/oauth/callback') {
+                    const code = url.searchParams.get('code');
+                    const error = url.searchParams.get('error');
+
+                    authWindow.close();
+
+                    if (error) {
+                        reject(new Error(`OAuth error: ${error}`));
+                        return;
+                    }
+
+                    if (code) {
+                        try {
+                            // Exchange code for access token
+                            const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
+                                body: new URLSearchParams({
+                                    client_id: clientId,
+                                    code: code,
+                                    grant_type: 'authorization_code',
+                                    redirect_uri: redirectUri
+                                })
+                            });
+
+                            const tokenData = await tokenResponse.json();
+
+                            if (tokenData.access_token) {
+                                resolve(tokenData.access_token);
+                            } else {
+                                reject(new Error('Failed to get access token: ' + JSON.stringify(tokenData)));
+                            }
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }
+                }
+            });
+
+            authWindow.on('closed', () => {
+                reject(new Error('OAuth window was closed'));
+            });
+        });
     });
 }
 

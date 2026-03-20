@@ -11,8 +11,9 @@ export const beams = sqliteTable('beams', {
     pricePerBeam: real('price_per_beam').notNull(),
     total: real('total').notNull(),
     qualityId: text('quality_id'),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    yarnUsedKg: real('yarn_used_kg'),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Takas table
@@ -23,8 +24,8 @@ export const takas = sqliteTable('takas', {
     folded: real('folded').notNull(),
     remaining: real('remaining').notNull(),
     qualityId: text('quality_id'),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Worker Profiles table
@@ -33,8 +34,8 @@ export const workerProfiles = sqliteTable('worker_profiles', {
     name: text('name').notNull(),
     phoneNumber: text('phone_number').notNull(),
     emergencyContact: text('emergency_contact').notNull(),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Qualities table
@@ -49,8 +50,9 @@ export const qualities = sqliteTable('qualities', {
     tars: real('tars'),
     beamRate: real('beam_rate'),
     beamPasarRate: real('beam_pasar_rate'),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    warpWeight: real('warp_weight'),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Sales table
@@ -67,17 +69,22 @@ export const sales = sqliteTable('sales', {
     paymentTerms: integer('payment_terms').notNull(),
     expectedPaymentDate: text('expected_payment_date').notNull(),
     status: text('status').notNull().default('pending'),
-    type: text('type').notNull().default('spot'), // 'spot' | 'advance'
+    type: text('type').notNull().default('spot'),
     qualityId: text('quality_id'),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    paymentMethod: text('payment_method'),
+    paidAmount: real('paid_amount'),
+    billNumbers: text('bill_numbers'),
+    paymentDate: text('payment_date'),
+    paymentNotes: text('payment_notes'),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 export const purchases = sqliteTable('purchases', {
     id: text('id').primaryKey(),
     date: text('date').notNull(),
     supplier: text('supplier').notNull(),
-    type: text('type').notNull().default('yarn'), // 'yarn' | 'beam'
+    type: text('type').notNull().default('yarn'),
     yarnType: text('yarn_type'),
     danier: text('danier'),
     tons: real('tons'),
@@ -88,8 +95,8 @@ export const purchases = sqliteTable('purchases', {
     tars: real('tars'),
     meters: real('meters'),
     total: real('total').notNull(),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Firms table
@@ -102,8 +109,8 @@ export const firms = sqliteTable('firms', {
     phoneNumber: text('phone_number').notNull(),
     email: text('email').notNull(),
     documents: text('documents', { mode: 'json' }).default('[]'),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Transactions table
@@ -115,8 +122,8 @@ export const transactions = sqliteTable('transactions', {
     amount: real('amount').notNull(),
     purpose: text('purpose').notNull(),
     payee: text('payee').notNull(),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Stock table
@@ -125,8 +132,8 @@ export const stock = sqliteTable('stock', {
     date: text('date').notNull(),
     yarnCount: text('yarn_count').notNull(),
     boxesAvailable: integer('boxes_available').notNull(),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Beam Pasar table
@@ -134,13 +141,13 @@ export const beamPasar = sqliteTable('beam_pasar', {
     id: text('id').primaryKey(),
     date: text('date').notNull(),
     beamNo: text('beam_no').notNull(),
-    count: integer('count'), // Optional in interface
+    count: integer('count'),
     tars: integer('tars').notNull(),
-    noOfTaka: integer('no_of_taka'), // Optional in interface
+    noOfTaka: integer('no_of_taka'),
     ratePerBeam: real('rate_per_beam').notNull(),
     qualityId: text('quality_id'),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Worker Sheet Data table
@@ -149,8 +156,8 @@ export const workerSheetData = sqliteTable('worker_sheet_data', {
     assignments: text('assignments', { mode: 'json' }).notNull(),
     gridData: text('grid_data', { mode: 'json' }).notNull(),
     lastUpdated: text('last_updated').default((new Date().toISOString())),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Notes table
@@ -163,8 +170,6 @@ export const notes = sqliteTable('notes', {
     completed: integer('completed', { mode: 'boolean' }).default(false),
     createdAt: text('created_at').notNull(),
 });
-
-// Additional Workers & Attendance
 
 // Begari Workers
 export const begariWorkers = sqliteTable('begari_workers', {
@@ -189,8 +194,8 @@ export const tfoAttendance = sqliteTable('tfo_attendance', {
     id: text('id').primaryKey(),
     workerId: text('worker_id').notNull(),
     date: text('date').notNull(),
-    type: text('type').notNull(), // 'full' | 'half'
-    cycle: text('cycle').notNull(), // '1-15' | '16-30'
+    type: text('type').notNull(),
+    cycle: text('cycle').notNull(),
 });
 
 // Master Workers
@@ -234,11 +239,9 @@ export const bobbinAttendance = sqliteTable('bobbin_attendance', {
     id: text('id').primaryKey(),
     workerId: text('worker_id').notNull(),
     date: text('date').notNull(),
-    type: text('type').notNull(), // 'full' | 'half'
+    type: text('type').notNull(),
     cycle: text('cycle').notNull(),
 });
-
-// Textile Calculations
 
 // Yarn Conversion Calculations
 export const yarnConversions = sqliteTable('yarn_conversions', {
@@ -246,7 +249,7 @@ export const yarnConversions = sqliteTable('yarn_conversions', {
     name: text('name').notNull(),
     date: text('date').notNull(),
     type: text('type').notNull(),
-    data: text('data', { mode: 'json' }).notNull(), // Store all flexible fields as JSON
+    data: text('data', { mode: 'json' }).notNull(),
     result: real('result').notNull(),
     resultUnit: text('result_unit').notNull(),
 });
@@ -326,14 +329,14 @@ export const purchaseDeliveries = sqliteTable('purchase_deliveries', {
     id: text('id').primaryKey(),
     purchaseId: text('purchase_id').notNull(),
     date: text('date').notNull(),
-    kg: real('kg'), // for yarn
-    numberOfBeams: real('number_of_beams'), // for beam purchases (batch)
-    beamNo: text('beam_no'), // for beams
-    weight: real('weight'), // for beams
-    meters: real('meters'), // for beams
+    kg: real('kg'),
+    numberOfBeams: real('number_of_beams'),
+    beamNo: text('beam_no'),
+    weight: real('weight'),
+    meters: real('meters'),
     notes: text('notes'),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });
 
 // Sale Deliveries table
@@ -344,6 +347,57 @@ export const saleDeliveries = sqliteTable('sale_deliveries', {
     takas: real('takas').notNull(),
     meters: real('meters').notNull(),
     notes: text('notes'),
-    createdAt: integer('created_at').default((Date.now())),
-    updatedAt: integer('updated_at').default((Date.now())),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
+});
+
+// Quality Costing table
+export const qualityCosting = sqliteTable('quality_costing', {
+    id: text('id').primaryKey(),
+    qualityId: text('quality_id').notNull(),
+    warpRate: real('warp_rate').notNull().default(0),
+    weftRate: real('weft_rate').notNull().default(0),
+    extraCosts: text('extra_costs', { mode: 'json' }).default('[]'),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
+});
+
+// Overhead Entries table
+export const overheadEntries = sqliteTable('overhead_entries', {
+    id: text('id').primaryKey(),
+    month: text('month').notNull(),
+    name: text('name').notNull(),
+    amount: real('amount').notNull(),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
+});
+
+// Monthly Production table
+export const monthlyProduction = sqliteTable('monthly_production', {
+    id: text('id').primaryKey(),
+    month: text('month').notNull(),
+    qualityId: text('quality_id').notNull(),
+    metersProduced: real('meters_produced').notNull(),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
+});
+
+// Monthly Salary Records table
+export const monthlySalaryRecords = sqliteTable('monthly_salary_records', {
+    id: text('id').primaryKey(),
+    month: text('month').notNull(),
+    cycle: text('cycle').notNull(),
+    productionWorkerTotal: real('production_worker_total').notNull().default(0),
+    begariTotal: real('begari_total').notNull().default(0),
+    tfoTotal: real('tfo_total').notNull().default(0),
+    bobbinTotal: real('bobbin_total').notNull().default(0),
+    masterTotal: real('master_total').notNull().default(0),
+    wiremanTotal: real('wireman_total').notNull().default(0),
+    warpingTotal: real('warping_total').notNull().default(0),
+    beamPasarTotal: real('beam_pasar_total').notNull().default(0),
+    grandTotal: real('grand_total').notNull().default(0),
+    totalWorkers: integer('total_workers').notNull().default(0),
+    submittedAt: text('submitted_at').notNull(),
+    createdAt: integer('created_at'),
+    updatedAt: integer('updated_at'),
 });

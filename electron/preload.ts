@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     dbUpdate: (factory: string, table: string, item: any) => ipcRenderer.invoke('db-update', factory, table, item),
     dbDelete: (factory: string, table: string, id: string) => ipcRenderer.invoke('db-delete', factory, table, id),
     dbClearTable: (factory: string, table: string) => ipcRenderer.invoke('db-clear-table', factory, table),
+    getDbLogs: () => ipcRenderer.invoke('get-db-logs'),
     // Migration trigger
     migrateJsonToSqlite: () => ipcRenderer.invoke('migrate-json-to-sqlite'),
 
@@ -39,6 +40,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('update-download-progress', listener);
         return () => ipcRenderer.removeListener('update-download-progress', listener);
     },
+
+    // Google OAuth
+    googleAuth: (options: { clientId: string; scopes: string[] }) => ipcRenderer.invoke('google-auth', options),
 });
 
 

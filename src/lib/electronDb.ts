@@ -27,7 +27,8 @@ import type {
     WarpingProductionCalculation,
     YarnConsumptionCalculation,
     PurchaseDelivery,
-    SaleDelivery
+    SaleDelivery,
+    MonthlySalaryRecord
 } from './types';
 import { TABLE_NAMES, ALL_DATA_TABLES } from './types';
 import { getActiveFactoryPrefix } from './factoryContext';
@@ -41,6 +42,25 @@ class ElectronDatabase {
 
     // Generic CRUD operations mapped to SQLite
 
+    async getAll<T>(table: string): Promise<T[]> {
+        return this.get<T>(table);
+    }
+
+    async upsert<T extends { id: string }>(table: string, item: T): Promise<void> {
+        const existing = await this.get<T>(table);
+        const found = existing.find((e: any) => e.id === item.id);
+        
+        if (found) {
+            await this.update(table, item.id, item);
+        } else {
+            await this.add(table, item);
+        }
+    }
+
+    async deleteRecord(table: string, id: string): Promise<void> {
+        return this.delete(table, id);
+    }
+
     private async get<T>(table: string): Promise<T[]> {
         if (!window.electronAPI) return [];
         return window.electronAPI.dbGet(this.getFactory(), table);
@@ -48,17 +68,22 @@ class ElectronDatabase {
 
     private async add<T>(table: string, item: T): Promise<void> {
         if (!window.electronAPI) return;
-        await window.electronAPI.dbAdd(this.getFactory(), table, item);
+        const result = await window.electronAPI.dbAdd(this.getFactory(), table, item);
+        if (!result.success) {
+            throw new Error(result.error || `Failed to add record to ${table}`);
+        }
     }
 
     private async update<T extends { id: string }>(table: string, id: string, item: T): Promise<void> {
         if (!window.electronAPI) return;
-        await window.electronAPI.dbUpdate(this.getFactory(), table, item);
+        const success = await window.electronAPI.dbUpdate(this.getFactory(), table, item);
+        if (!success) throw new Error(`Failed to update record in ${table}`);
     }
 
     private async delete(table: string, id: string): Promise<void> {
         if (!window.electronAPI) return;
-        await window.electronAPI.dbDelete(this.getFactory(), table, id);
+        const success = await window.electronAPI.dbDelete(this.getFactory(), table, id);
+        if (!success) throw new Error(`Failed to delete record from ${table}`);
     }
 
     // Test connection
@@ -253,10 +278,8 @@ class ElectronDatabase {
     // Clear Methods
 
     private async clearTable(table: string): Promise<void> {
-        const items = await this.get<any>(table);
-        for (const item of items) {
-            if (item.id) await this.delete(table, item.id);
-        }
+        if (!window.electronAPI) return;
+        await window.electronAPI.dbClearTable(this.getFactory(), table);
     }
 
     async clearBeams(): Promise<void> { await this.clearTable(TABLE_NAMES.beams); }
@@ -280,6 +303,12 @@ class ElectronDatabase {
         }
         window.localStorage.clear();
     }
+
+    // Monthly Salary Records operations
+    async getMonthlySalaryRecords(): Promise<MonthlySalaryRecord[]> { return this.get<MonthlySalaryRecord>(TABLE_NAMES.monthlySalaryRecords); }
+    async addMonthlySalaryRecord(record: MonthlySalaryRecord): Promise<void> { return this.add(TABLE_NAMES.monthlySalaryRecords, record); }
+    async updateMonthlySalaryRecord(id: string, record: MonthlySalaryRecord): Promise<void> { return this.update(TABLE_NAMES.monthlySalaryRecords, id, record); }
+    async deleteMonthlySalaryRecord(id: string): Promise<void> { return this.delete(TABLE_NAMES.monthlySalaryRecords, id); }
 
     // Export data (for backup)
     async exportData(): Promise<Record<string, any[]>> {

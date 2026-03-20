@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSales, useQualities, useTakas, useSaleDeliveries } from "@/hooks/useAsyncStorage";
 import type { Sale, Quality, Taka, SaleDelivery } from "@/lib/types";
-import { Plus, Pencil, Trash2, ArrowUpDown, ShoppingBag, Scale, Coins, Package, Loader2, Truck, History, Ruler, Layers, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowUpDown, ShoppingBag, Scale, Coins, Package, Loader2, Truck, History, Ruler, Layers, AlertCircle, Calendar, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +34,20 @@ export default function Sales() {
   const { data: deliveries, loading: dLoading, add: addDelivery, delete: deleteDelivery } = useSaleDeliveries();
   const { data: rawQualities, loading: qLoading } = useQualities();
   const { data: takas, loading: tLoading, update: updateTaka } = useTakas();
+
+  // Define helper functions first
+  const calculateExpectedDate = (date: string, terms: number) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + terms);
+    return d.toISOString().split('T')[0];
+  };
+
+  const calculateSale = (meters: number, rate: number) => {
+    const amount = meters * rate;
+    const tax = amount * 0.05;
+    return { amount, tax, total: amount + tax };
+  };
+
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +61,8 @@ export default function Sales() {
     qualityId: "",
     type: 'spot' as 'spot' | 'advance_meters' | 'advance_lots',
     unitMeters: 0,
-    expectedPaymentDate: new Date().toISOString().split('T')[0], // Added for new form structure
+    expectedPaymentDate: calculateExpectedDate(new Date().toISOString().split('T')[0], 45), // Auto-calculate initial date
+    usePaymentTerms: true, // New field to toggle between manual date and payment terms
   });
 
   const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
@@ -69,18 +84,6 @@ export default function Sales() {
   const { toast } = useToast();
 
   const loading = sLoading || qLoading || tLoading || dLoading;
-
-  const calculateSale = (meters: number, rate: number) => {
-    const amount = meters * rate;
-    const tax = amount * 0.05;
-    return { amount, tax, total: amount + tax };
-  };
-
-  const calculateExpectedDate = (date: string, terms: number) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + terms);
-    return d.toISOString().split('T')[0];
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,6 +251,9 @@ export default function Sales() {
   };
 
   const handleEdit = (sale: Sale) => {
+    const calculatedDate = calculateExpectedDate(sale.date, sale.paymentTerms);
+    const isUsingTerms = sale.expectedPaymentDate === calculatedDate;
+    
     setFormData({
       date: sale.date,
       party: sale.party,
@@ -258,7 +264,8 @@ export default function Sales() {
       qualityId: sale.qualityId || "",
       type: (sale.type as any) === 'advance' ? 'advance_meters' : (sale.type || 'spot'),
       unitMeters: sale.takas > 0 ? sale.meters / sale.takas : 0,
-      expectedPaymentDate: sale.expectedPaymentDate, // Set for editing
+      expectedPaymentDate: sale.expectedPaymentDate,
+      usePaymentTerms: isUsingTerms, // Detect if using payment terms or manual date
     });
     setEditingId(sale.id);
     setIsAdding(true);
@@ -373,8 +380,9 @@ export default function Sales() {
   };
 
   const resetForm = () => {
+    const initialDate = new Date().toISOString().split('T')[0];
     setFormData({
-      date: new Date().toISOString().split('T')[0],
+      date: initialDate,
       party: "",
       takas: 0,
       meters: 0,
@@ -383,7 +391,8 @@ export default function Sales() {
       qualityId: "",
       type: 'spot',
       unitMeters: 0,
-      expectedPaymentDate: new Date().toISOString().split('T')[0], // Reset expected payment date
+      expectedPaymentDate: calculateExpectedDate(initialDate, 45), // Auto-calculate on reset
+      usePaymentTerms: true, // Default to using payment terms
     });
     setIsAdding(false);
     setEditingId(null);
@@ -645,7 +654,16 @@ export default function Sales() {
                     <Input
                       type="date"
                       value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      onChange={(e) => {
+                        const newDate = e.target.value;
+                        setFormData({
+                          ...formData,
+                          date: newDate,
+                          expectedPaymentDate: formData.usePaymentTerms 
+                            ? calculateExpectedDate(newDate, formData.paymentTerms)
+                            : formData.expectedPaymentDate
+                        });
+                      }}
                       required
                     />
                   </div>
@@ -751,12 +769,104 @@ export default function Sales() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-semibold">Payment Target</label>
-                    <Input
-                      type="date"
-                      value={formData.expectedPaymentDate}
-                      onChange={(e) => setFormData({ ...formData, expectedPaymentDate: e.target.value })}
-                    />
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-sm font-semibold">Payment Target</label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const newUseTerms = !formData.usePaymentTerms;
+                          setFormData({
+                            ...formData,
+                            usePaymentTerms: newUseTerms,
+                            expectedPaymentDate: newUseTerms 
+                              ? calculateExpectedDate(formData.date, formData.paymentTerms)
+                              : formData.expectedPaymentDate
+                          });
+                        }}
+                        className="h-6 px-2 text-xs"
+                      >
+                        {formData.usePaymentTerms ? (
+                          <>
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Use Date
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="h-3 w-3 mr-1" />
+                            Use Days
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {formData.usePaymentTerms ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={formData.paymentTerms}
+                            onChange={(e) => {
+                              const days = parseInt(e.target.value) || 0;
+                              setFormData({
+                                ...formData,
+                                paymentTerms: days,
+                                expectedPaymentDate: calculateExpectedDate(formData.date, days)
+                              });
+                            }}
+                            placeholder="Days"
+                            className="w-20"
+                            min="1"
+                            max="365"
+                          />
+                          <span className="text-sm text-muted-foreground">days from contract date</span>
+                        </div>
+                        
+                        {/* Quick preset buttons */}
+                        <div className="flex flex-wrap gap-1">
+                          {[15, 30, 45, 60, 90].map(days => (
+                            <Button
+                              key={days}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  paymentTerms: days,
+                                  expectedPaymentDate: calculateExpectedDate(formData.date, days)
+                                });
+                              }}
+                              className={`h-6 px-2 text-xs ${formData.paymentTerms === days ? 'bg-primary text-primary-foreground' : ''}`}
+                            >
+                              {days}d
+                            </Button>
+                          ))}
+                        </div>
+                        
+                        <div className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20 p-2 rounded border border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span className="font-semibold">Auto-calculated: {new Date(formData.expectedPaymentDate).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Input
+                          type="date"
+                          value={formData.expectedPaymentDate}
+                          onChange={(e) => setFormData({ ...formData, expectedPaymentDate: e.target.value })}
+                        />
+                        <div className="text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 p-2 rounded border border-blue-200 dark:border-blue-800">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span className="font-semibold">Manual date selected</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

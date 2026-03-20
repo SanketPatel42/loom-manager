@@ -15,6 +15,7 @@ export interface Beam {
     pricePerBeam: number;
     total: number;
     qualityId?: string;
+    yarnUsedKg?: number; // Calculated: warpWeight × noOfTakas
 }
 
 export interface Taka {
@@ -54,10 +55,12 @@ export interface Quality {
     epi?: number;
     ppi?: number;
     danier?: string;
-    createdAt: string;
+    createdAt?: number; // Unix timestamp
+    updatedAt?: number; // Unix timestamp
     tars: number;
     beamRate: number;
     beamPasarRate: number;
+    warpWeight?: number; // Weight in kg for 1 taka (from textile calculations)
 }
 
 export interface Sale {
@@ -285,6 +288,25 @@ export interface BobbinAttendance {
     cycle: '1-15' | '16-30';
 }
 
+// ── Monthly Salary Records ─────────────────────────────────
+
+export interface MonthlySalaryRecord {
+    id: string;
+    month: string; // Format: YYYY-MM
+    cycle: '1-15' | '16-30';
+    productionWorkerTotal: number;
+    begariTotal: number;
+    tfoTotal: number;
+    bobbinTotal: number;
+    masterTotal: number;
+    wiremanTotal: number;
+    warpingTotal: number;
+    beamPasarTotal: number;
+    grandTotal: number;
+    totalWorkers: number;
+    submittedAt: string;
+}
+
 // ── Notes ──────────────────────────────────────────────────
 
 export interface Note {
@@ -429,6 +451,10 @@ export const TABLE_NAMES = {
     yarnConsumptions: 'yarnConsumptions',
     purchaseDeliveries: 'purchaseDeliveries',
     saleDeliveries: 'saleDeliveries',
+    qualityCosting: 'quality_costing',
+    overheadEntries: 'overhead_entries',
+    monthlyProduction: 'monthly_production',
+    monthlySalaryRecords: 'monthly_salary_records',
 } as const;
 
 export type TableName = keyof typeof TABLE_NAMES;

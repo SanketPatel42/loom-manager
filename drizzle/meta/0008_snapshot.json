@@ -1,0 +1,116 @@
+{
+    "version": "5",
+    "dialect": "sqlite",
+    "id": "0008_add_overhead_costing",
+    "prevId": "0007_add_quality_costing",
+    "tables": {
+        "overhead_entries": {
+            "name": "overhead_entries",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "autoincrement": false
+                },
+                "month": {
+                    "name": "month",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "autoincrement": false
+                },
+                "name": {
+                    "name": "name",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "autoincrement": false
+                },
+                "amount": {
+                    "name": "amount",
+                    "type": "real",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "autoincrement": false
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": false,
+                    "autoincrement": false
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": false,
+                    "autoincrement": false
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {}
+        },
+        "monthly_production": {
+            "name": "monthly_production",
+            "columns": {
+                "id": {
+                    "name": "id",
+                    "type": "text",
+                    "primaryKey": true,
+                    "notNull": true,
+                    "autoincrement": false
+                },
+                "month": {
+                    "name": "month",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "autoincrement": false
+                },
+                "quality_id": {
+                    "name": "quality_id",
+                    "type": "text",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "autoincrement": false
+                },
+                "meters_produced": {
+                    "name": "meters_produced",
+                    "type": "real",
+                    "primaryKey": false,
+                    "notNull": true,
+                    "autoincrement": false
+                },
+                "created_at": {
+                    "name": "created_at",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": false,
+                    "autoincrement": false
+                },
+                "updated_at": {
+                    "name": "updated_at",
+                    "type": "integer",
+                    "primaryKey": false,
+                    "notNull": false,
+                    "autoincrement": false
+                }
+            },
+            "indexes": {},
+            "foreignKeys": {},
+            "compositePrimaryKeys": {},
+            "uniqueConstraints": {}
+        }
+    },
+    "enums": {},
+    "_meta": {
+        "schemas": {},
+        "tables": {},
+        "columns": {}
+    }
+}

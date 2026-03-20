@@ -5,10 +5,10 @@ import { ClientSideRowModelModule } from '@ag-grid-community/client-side-row-mod
 import '@ag-grid-community/styles/ag-grid.css';
 import '@ag-grid-community/styles/ag-theme-alpine.css';
 import { Button } from "@/components/ui/button";
-import { storage } from "@/lib/localStorage";
+import { storage, asyncStorage } from "@/lib/storage";
 import { useWorkerProfiles, useQualities, useWorkerSheetData } from "@/hooks/useAsyncStorage";
-import type { WorkerProfile, Quality, WorkerSheetData, CellColorType, CellData, ColorQualityMapping, MachineSheetData, SheetAssignment, WorkerSplit } from "@/lib/types";
-import { Save, Download, Undo, Redo, Copy, Palette, PaintBucket, Maximize2, Minimize2, Trash2, Plus, X, Calendar as CalendarIcon, Split, Info, BarChart3, ZoomIn, ZoomOut, Eye, EyeOff, TrendingUp, Activity, Loader2, Settings2, SlidersHorizontal, ChevronDown, ChevronUp } from "lucide-react";
+import type { WorkerProfile, Quality, WorkerSheetData, CellColorType, CellData, ColorQualityMapping, MachineSheetData, SheetAssignment, WorkerSplit, MonthlySalaryRecord } from "@/lib/types";
+import { Save, Download, Undo, Redo, Copy, Palette, PaintBucket, Maximize2, Minimize2, Trash2, Plus, X, Calendar as CalendarIcon, Split, Info, BarChart3, ZoomIn, ZoomOut, Eye, EyeOff, TrendingUp, Activity, Loader2, Settings2, SlidersHorizontal, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,7 +63,9 @@ const SplitManagerDialog = ({
   const [endDay, setEndDay] = useState<number>(cycle === '1-15' ? 15 : 30);
 
   useEffect(() => {
-    setLocalSplits(splits || []);
+    if (open) {
+      setLocalSplits(splits || []);
+    }
   }, [splits, open]);
 
   const handleAddSplit = () => {
@@ -390,63 +392,6 @@ export default function Workers() {
 
     // Set as active paint color
     setActivePaintColor(color);
-
-    // Also apply to currently selected cells if any
-    const api = gridRef.current?.api;
-    if (api) {
-      const selectedRanges = api.getCellRanges();
-      if (selectedRanges && selectedRanges.length > 0) {
-        applyColorToSelectedCells(color);
-      }
-    }
-  };
-
-  // Apply color to selected cells
-  const applyColorToSelectedCells = (color: CellColorType) => {
-    const api = gridRef.current?.api;
-    if (!api) return;
-
-    const selectedRanges = api.getCellRanges();
-    if (!selectedRanges || selectedRanges.length === 0) return;
-
-    const updatedData = [...gridData[activeSheet]];
-    let cellsUpdated = 0;
-
-    selectedRanges.forEach(range => {
-      if (!range.startRow || !range.endRow) return;
-
-      const startRow = Math.min(range.startRow.rowIndex, range.endRow.rowIndex);
-      const endRow = Math.max(range.startRow.rowIndex, range.endRow.rowIndex);
-
-      range.columns.forEach(col => {
-        const field = col.getColId();
-        if (field === 'day') return;
-
-        for (let rowIndex = startRow; rowIndex <= endRow; rowIndex++) {
-          const row = updatedData[rowIndex];
-          if (row) {
-            const cellData = getCellData(row[field]);
-            // Only update if color is different
-            if (cellData.color !== color) {
-              row[field] = { ...cellData, color };
-              cellsUpdated++;
-            }
-          }
-        }
-      });
-    });
-
-    if (cellsUpdated > 0) {
-      setGridData(prev => ({ ...prev, [activeSheet]: updatedData }));
-      saveToStorage(sheetAssignments, { ...gridData, [activeSheet]: updatedData });
-      api.refreshCells({ force: true });
-
-      const colorName = AVAILABLE_COLORS.find(c => c.value === color)?.name || 'color';
-      toast({
-        title: `✓ Color applied`,
-        description: `${colorName} applied to ${cellsUpdated} cell(s)`
-      });
-    }
   };
 
   // Handle cell click for paint mode
@@ -819,6 +764,149 @@ export default function Workers() {
     }
   }, [clearSheetData, toast]);
 
+  const handleSubmitAndMoveToNextMonth = useCallback(async () => {
+    // Show confirmation dialog
+    const confirmed = confirm(
+      "Are you sure you want to submit this month's data and move to the next month?\n\n" +
+      "This will:\n" +
+      "1. Save all salary calculations to history\n" +
+      "2. Clear the current sheet data\n" +
+      "3. Prepare for next month's data entry\n\n" +
+      "This action cannot be undone!"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsSubmitting(true);
+
+      // Get current month and cycle from the first sheet assignment
+      const firstAssignment = sheetAssignments['1'];
+      const currentCycle = firstAssignment?.cycle || '1-15';
+      const currentMonth = new Date().toISOString().slice(0, 7);
+
+      // Load all necessary data for salary calculation
+      const [
+        workerProfiles,
+        qualityData,
+        sheetData,
+        beamsData,
+        begariWorkersData,
+        tfoWorkersData,
+        tfoAttendanceData,
+        bobbinWorkersData,
+        bobbinAttendanceData,
+        masterWorkersData,
+        wiremanWorkersData,
+        wiremanBillsData
+      ] = await Promise.all([
+        asyncStorage.getWorkerProfiles(),
+        asyncStorage.getQualities(),
+        asyncStorage.getWorkerSheetData(),
+        asyncStorage.getBeams(),
+        asyncStorage.getBegariWorkers(),
+        asyncStorage.getTFOWorkers(),
+        asyncStorage.getTFOAttendance(),
+        asyncStorage.getBobbinWorkers(),
+        asyncStorage.getBobbinAttendance(),
+        asyncStorage.getMasterWorkers(),
+        asyncStorage.getWiremanWorkers(),
+        asyncStorage.getWiremanBills()
+      ]);
+
+      // Load beam pasars
+      let beamPasarsData;
+      try {
+        beamPasarsData = await asyncStorage.getBeamPasars();
+      } catch (error) {
+        beamPasarsData = await Promise.resolve(storage.getBeamPasars());
+      }
+
+      // Calculate salaries (import these functions from comprehensiveSalaryUtils)
+      const { calculateProductionSalaries, calculateTFOSalaries, calculateBobbinSalaries, calculateWiremanSalaries, calculateWarpingSalaries, calculateBeamPasarSalaries } = await import("@/utils/comprehensiveSalaryUtils");
+
+      let productionWorkerTotal = 0;
+      if (sheetData) {
+        const { sheetSalaries } = calculateProductionSalaries(sheetData, workerProfiles, qualityData);
+        const filteredSheetSalaries = sheetSalaries.filter(s => s.cycle === currentCycle);
+        productionWorkerTotal = filteredSheetSalaries.reduce((sum, s) => sum + s.totalSalary, 0);
+      }
+
+      const tfoSalaries = calculateTFOSalaries(tfoWorkersData, tfoAttendanceData, currentCycle, currentMonth);
+      const bobbinSalaries = calculateBobbinSalaries(bobbinWorkersData, bobbinAttendanceData, currentCycle, currentMonth);
+      const wiremanSalaries = calculateWiremanSalaries(wiremanWorkersData, wiremanBillsData, currentCycle, currentMonth);
+      const warpingSalaries = calculateWarpingSalaries(beamsData, currentCycle, currentMonth);
+      const beamPasarSalaries = calculateBeamPasarSalaries(beamPasarsData, currentCycle, currentMonth);
+
+      const begariTotal = begariWorkersData.reduce((sum, w) => sum + w.monthlySalary / 2, 0);
+      const tfoTotal = tfoSalaries.reduce((sum, s) => sum + s.totalSalary, 0);
+      const bobbinTotal = bobbinSalaries.reduce((sum, s) => sum + s.totalSalary, 0);
+      const masterTotal = masterWorkersData.reduce((sum, w) => sum + w.monthlySalary / 2, 0);
+      const wiremanTotal = wiremanSalaries.reduce((sum, s) => sum + s.totalBills, 0);
+      const warpingTotal = warpingSalaries.reduce((sum, s) => sum + s.totalAmount, 0);
+      const beamPasarTotal = beamPasarSalaries.reduce((sum, s) => sum + s.amount, 0);
+      const grandTotal = productionWorkerTotal + begariTotal + tfoTotal + bobbinTotal + masterTotal + wiremanTotal + warpingTotal + beamPasarTotal;
+
+      const totalWorkers = (sheetData ? Object.keys(sheetData.assignments).length : 0) + 
+        begariWorkersData.length + tfoWorkersData.length + bobbinWorkersData.length + 
+        masterWorkersData.length + wiremanWorkersData.length + warpingSalaries.length;
+
+      // Check if record already exists
+      const existingRecords = await asyncStorage.getMonthlySalaryRecords();
+      const existingRecord = existingRecords.find(
+        r => r.month === currentMonth && r.cycle === currentCycle
+      );
+
+      // Create salary record
+      const record: MonthlySalaryRecord = {
+        id: existingRecord?.id || `${currentMonth}-${currentCycle}`,
+        month: currentMonth,
+        cycle: currentCycle,
+        productionWorkerTotal,
+        begariTotal,
+        tfoTotal,
+        bobbinTotal,
+        masterTotal,
+        wiremanTotal,
+        warpingTotal,
+        beamPasarTotal,
+        grandTotal,
+        totalWorkers,
+        submittedAt: new Date().toISOString(),
+      };
+
+      // Save salary record
+      if (existingRecord) {
+        await asyncStorage.updateMonthlySalaryRecord(record.id, record);
+      } else {
+        await asyncStorage.addMonthlySalaryRecord(record);
+      }
+
+      // Clear the sheet data
+      await clearSheetData();
+      
+      // Reinitialize for next month
+      initializeGridData();
+      initializeAssignments();
+
+      toast({
+        title: "Success!",
+        description: `Salary record saved for ${currentMonth} (${currentCycle}). Sheet cleared for next month.`,
+        duration: 5000,
+      });
+
+    } catch (error) {
+      console.error('Error submitting and moving to next month:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [sheetAssignments, clearSheetData, toast]);
+
   const currentAssignment = sheetAssignments[activeSheet] || {
     dayWorker: '',
     nightWorker: '',
@@ -991,9 +1079,17 @@ export default function Workers() {
             <Trash2 className="h-4 w-4" />
             <span className="hidden sm:inline">Clear Sheet</span>
           </Button>
-          <Button size="sm" onClick={() => toast({ title: "Data is auto-saved" })} className="h-9 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
-            <Save className="h-4 w-4" />
-            <span className="hidden sm:inline">Save</span>
+          
+          <Separator orientation="vertical" className="h-8 mx-1" />
+          
+          <Button 
+            size="lg" 
+            onClick={handleSubmitAndMoveToNextMonth} 
+            disabled={isSubmitting}
+            className="h-10 gap-2 bg-green-600 hover:bg-green-700 text-white shadow-md font-semibold"
+          >
+            <CheckCircle className="h-5 w-5" />
+            <span>{isSubmitting ? "Submitting..." : "Submit & Move to Next Month"}</span>
           </Button>
         </div>
       </header>
@@ -1257,12 +1353,12 @@ export default function Workers() {
                     ensureDomOrder={true}
                     suppressHorizontalScroll={false}
                     suppressMenuHide={true}
-                    rowSelection="multiple"
+                    rowSelection="single"
                     enterNavigatesVertically={true}
                     enterNavigatesVerticallyAfterEdit={true}
                     suppressMovableColumns={true}
-                    enableRangeSelection={true}
-                    enableFillHandle={true}
+                    enableRangeSelection={false}
+                    enableFillHandle={false}
                     undoRedoCellEditing={true}
                     undoRedoCellEditingLimit={10}
                     stopEditingWhenCellsLoseFocus={true}

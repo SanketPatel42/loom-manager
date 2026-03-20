@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { asyncStorage } from "@/lib/storage";
 import { onDataChange } from "@/lib/events";
+import { useSales, useWorkerSheetData, useQualities } from "@/hooks/useAsyncStorage";
+import { getUrgentPaymentCollection, getPaymentPriority, calculateTotalOutstanding } from "@/utils/paymentUtils";
+import MonthlyProductionCard from "@/components/MonthlyProductionCard";
 import {
   Package,
   Wind,
@@ -29,7 +32,9 @@ import { Progress } from "@/components/ui/progress";
 import DatabaseStatus from "@/components/DatabaseStatus";
 import RefreshTool from "@/components/RefreshTool";
 import CloudBackup from "@/components/CloudBackup";
+import { useFactory } from "@/lib/factoryContext";
 import ManualBackupRestore from "@/components/ManualBackupRestore";
+import { calculateYarnUsageByQuality } from "@/utils/yarnUsageMetrics";
 import {
   Table,
   TableBody,
@@ -99,12 +104,22 @@ const Index = () => {
     lowStockItems: [] as any[],
     pendingPurchases: [] as any[],
     pendingSales: [] as any[],
+    urgentPaymentCollection: [] as any[],
+    yarnUsageByQuality: [] as any[],
+    stockByYarnCount: {} as Record<string, any>,
+    takasByQuality: {} as Record<string, any>,
   });
 
   const [dailyRecords, setDailyRecords] = useState<Record<string, any>>({});
+  const { activeFactory } = useFactory();
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Load worker sheet data and qualities for production metrics
+  const { data: workerSheetData } = useWorkerSheetData();
+  const { data: qualities = [] } = useQualities();
 
   const loadData = useCallback(async () => {
+    if (!activeFactory?.id) return;
     try {
       console.log('[Dashboard] Starting data load...');
       const today = new Date();
@@ -275,6 +290,34 @@ const Index = () => {
           return sum + (s.total || 0);
         }, 0);
 
+      // --- Urgent Payment Collection (Beyond 45 Days) ---
+      const urgentPaymentCollection = getUrgentPaymentCollection(sales);
+
+      // --- Yarn Usage by Quality (This Month) ---
+      const yarnUsageByQuality = calculateYarnUsageByQuality(beams, qualities, startOfMonth);
+
+      // --- Stock by Yarn Count ---
+      const stockByYarnCount: Record<string, any> = {};
+      Object.values(latestStockByYarn).forEach((s: any) => {
+        stockByYarnCount[s.yarnCount] = {
+          boxesAvailable: s.boxesAvailable,
+          date: s.date,
+          id: s.id
+        };
+      });
+
+      // --- Takas by Quality ---
+      const takasByQuality: Record<string, any> = {};
+      Object.entries(latestTakasByQuality).forEach(([qId, t]: any) => {
+        const quality = qualities.find(q => q.id === qId);
+        takasByQuality[qId] = {
+          qualityName: quality?.name || 'Unassigned',
+          remaining: t.remaining || 0,
+          date: t.date,
+          id: t.id
+        };
+      });
+
       setStats({
         beamsYesterday,
         takasProduced: yesterdayTakasProduced,
@@ -288,6 +331,10 @@ const Index = () => {
         lowStockItems,
         pendingPurchases: pendingPurchasesData,
         pendingSales: pendingSalesData,
+        urgentPaymentCollection,
+        yarnUsageByQuality,
+        stockByYarnCount,
+        takasByQuality,
       });
 
       // Group all records by date
@@ -327,7 +374,7 @@ const Index = () => {
       console.error('[Dashboard] Error loading dashboard data:', error);
       setIsLoading(false);
     }
-  }, []);
+  }, [activeFactory?.id]);
 
   useEffect(() => {
     loadData();
@@ -343,7 +390,7 @@ const Index = () => {
       unsubscribe();
       clearInterval(interval);
     };
-  }, [loadData]);
+  }, [loadData, activeFactory?.id]);
 
   // Get current greeting based on time
   const getGreeting = () => {
@@ -374,7 +421,7 @@ const Index = () => {
       </div>
 
       {/* Quick Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/20 hover:border-green-500/40 transition-all duration-300 hover:scale-[1.02] cursor-default">
           <div className="stat-icon stat-icon-green">
             <Zap className="h-5 w-5" />
@@ -411,6 +458,17 @@ const Index = () => {
             <p className="font-bold text-orange-600 dark:text-orange-400">₹{(stats.salesMonth / 1000).toFixed(0)}K</p>
           </div>
         </div>
+        {stats.urgentPaymentCollection.length > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-br from-red-500/20 to-red-500/10 border-2 border-red-500/40 hover:border-red-500/60 transition-all duration-300 hover:scale-[1.02] cursor-default animate-pulse">
+            <div className="stat-icon stat-icon-red">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-red-600 dark:text-red-400 font-medium">URGENT</p>
+              <p className="font-bold text-red-700 dark:text-red-300">{stats.urgentPaymentCollection.length} Overdue</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Alerts Section */}
@@ -435,6 +493,221 @@ const Index = () => {
                   {item.yarnCount}: {item.boxesAvailable} boxes left
                 </Badge>
               ))}
+            </div>
+          </div>
+        )
+      }
+
+      {/* Stock & Inventory Overview */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Current Stock by Yarn Count */}
+        <Card className="rounded-xl border shadow-sm overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-amber-500/5 to-transparent pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Boxes className="h-5 w-5 text-amber-500" />
+                Current Stock by Yarn Count
+              </CardTitle>
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs py-1">
+                {Object.keys(stats.stockByYarnCount || {}).length} Types
+              </Badge>
+            </div>
+            <CardDescription className="text-sm">Available yarn boxes in warehouse</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-[400px] overflow-auto">
+              <Table>
+                <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="text-sm font-bold text-foreground">Yarn Count</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-foreground">Boxes Available</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-foreground">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.keys(stats.stockByYarnCount || {}).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground text-base">
+                        No stock data available
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    Object.entries(stats.stockByYarnCount || {})
+                      .sort(([, a]: any, [, b]: any) => a.boxesAvailable - b.boxesAvailable)
+                      .map(([yarnCount, data]: any) => {
+                        const isUrgent = data.boxesAvailable < 30;
+                        const isLow = data.boxesAvailable < 50 && data.boxesAvailable >= 30;
+                        
+                        return (
+                          <TableRow key={yarnCount} className={isUrgent ? 'bg-red-50 dark:bg-red-950/20' : isLow ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                            <TableCell className="font-bold text-base py-3">{yarnCount}</TableCell>
+                            <TableCell className="text-right">
+                              <span className={`text-2xl font-bold ${isUrgent ? 'text-red-600 dark:text-red-400' : isLow ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                {data.boxesAvailable}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {isUrgent ? (
+                                <Badge variant="destructive" className="animate-pulse font-bold">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  URGENT DELIVERY
+                                </Badge>
+                              ) : isLow ? (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Low Stock
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700">
+                                  Good Stock
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Current Takas by Quality */}
+        <Card className="rounded-xl border shadow-sm overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-purple-500/5 to-transparent pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Package className="h-5 w-5 text-purple-500" />
+                Current Takas by Quality
+              </CardTitle>
+              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs py-1">
+                {Object.keys(stats.takasByQuality || {}).length} Qualities
+              </Badge>
+            </div>
+            <CardDescription className="text-sm">Available fabric takas ready for dispatch</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-[400px] overflow-auto">
+              <Table>
+                <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="text-sm font-bold text-foreground">Quality Name</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-foreground">Takas Available</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-foreground">Last Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.keys(stats.takasByQuality || {}).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground text-base">
+                        No taka data available
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    Object.entries(stats.takasByQuality || {})
+                      .sort(([, a]: any, [, b]: any) => b.remaining - a.remaining)
+                      .map(([qualityId, data]: any) => (
+                        <TableRow key={qualityId}>
+                          <TableCell className="font-bold text-base py-3">
+                            {data.qualityName || 'Unassigned'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                              {data.remaining}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">
+                            {new Date(data.date).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  )}
+                  <TableRow className="bg-muted/50 font-bold border-t-2">
+                    <TableCell>Total</TableCell>
+                    <TableCell className="text-right">
+                      <span className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                        {Object.values(stats.takasByQuality || {}).reduce((sum: number, data: any) => sum + data.remaining, 0)}
+                      </span>
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Urgent Payment Collection Section */}
+      {
+        stats.urgentPaymentCollection.length > 0 && (
+          <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/50 dark:to-red-900/30 border-2 border-red-200 dark:border-red-800 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center gap-3 text-red-700 dark:text-red-400 font-bold mb-4 relative z-10">
+              <AlertCircle className="h-6 w-6 animate-pulse" />
+              <span className="text-lg">URGENT PAYMENT COLLECTION</span>
+              <Badge variant="destructive" className="ml-2 animate-pulse text-sm px-3 py-1">
+                {stats.urgentPaymentCollection.length} Parties
+              </Badge>
+            </div>
+            <div className="text-sm text-red-600 dark:text-red-300 mb-4 font-medium">
+              Payments overdue by more than 45 days - Immediate action required
+            </div>
+            <div className="space-y-3 relative z-10">
+              {stats.urgentPaymentCollection.map((sale, idx) => (
+                <div
+                  key={sale.id}
+                  className="bg-white/90 dark:bg-red-950/30 border border-red-300 dark:border-red-700 rounded-lg p-4 hover:shadow-md transition-all duration-200"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-bold text-red-800 dark:text-red-200 text-lg">{sale.party}</h4>
+                        <Badge variant="destructive" className="text-xs font-bold">
+                          {sale.daysPassed} DAYS OVERDUE
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                        <div>
+                          <span className="text-red-600 dark:text-red-400 font-medium">Amount:</span>
+                          <div className="font-bold text-red-800 dark:text-red-200">₹{sale.total.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <span className="text-red-600 dark:text-red-400 font-medium">Quantity:</span>
+                          <div className="font-bold text-red-800 dark:text-red-200">{sale.takas} Takas</div>
+                        </div>
+                        <div>
+                          <span className="text-red-600 dark:text-red-400 font-medium">Expected:</span>
+                          <div className="font-bold text-red-800 dark:text-red-200">{new Date(sale.expectedPaymentDate).toLocaleDateString()}</div>
+                        </div>
+                        <div>
+                          <span className="text-red-600 dark:text-red-400 font-medium">Type:</span>
+                          <div className="font-bold text-red-800 dark:text-red-200 uppercase">{sale.type || 'SPOT'}</div>
+                        </div>
+                      </div>
+                      {sale.billNumbers && (
+                        <div className="mt-2 text-xs">
+                          <span className="text-red-600 dark:text-red-400 font-medium">Bill Numbers:</span>
+                          <span className="ml-1 text-red-700 dark:text-red-300">{sale.billNumbers}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="text-right">
+                        <div className="text-xs text-red-600 dark:text-red-400 font-medium">PRIORITY</div>
+                        <div className="text-2xl font-bold text-red-700 dark:text-red-300">
+                          {getPaymentPriority(sale.daysPassed)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg">
+              <div className="text-sm font-medium text-red-800 dark:text-red-200">
+                Total Outstanding: ₹{calculateTotalOutstanding(stats.urgentPaymentCollection).toLocaleString()}
+              </div>
             </div>
           </div>
         )
@@ -561,6 +834,59 @@ const Index = () => {
         </Card>
       </div>
 
+      {/* Yarn Usage by Quality (This Month) */}
+      {stats.yarnUsageByQuality.length > 0 && (
+        <Card className="rounded-xl border shadow-sm overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-indigo-500/5 to-transparent pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Package className="h-5 w-5 text-indigo-500" />
+                Yarn Usage by Quality (This Month)
+              </CardTitle>
+              <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 text-xs py-1">
+                {stats.yarnUsageByQuality.length} Qualities
+              </Badge>
+            </div>
+            <CardDescription className="text-sm">Total yarn consumption from beam production</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {stats.yarnUsageByQuality.map((usage: any) => (
+                <div
+                  key={usage.qualityId}
+                  className="p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-indigo-900/20 border border-indigo-200 dark:border-indigo-800 hover:shadow-md transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold text-indigo-800 dark:text-indigo-200">{usage.qualityName}</h4>
+                    <Badge variant="secondary" className="text-xs">
+                      {usage.beamCount} beams
+                    </Badge>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                      {usage.totalKg.toFixed(2)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">kg</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Avg: {(usage.totalKg / usage.beamCount).toFixed(3)} kg/beam
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 p-4 bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-300 dark:border-indigo-700 rounded-lg">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-indigo-800 dark:text-indigo-200">
+                  Total Yarn Used This Month:
+                </span>
+                <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                  {stats.yarnUsageByQuality.reduce((sum: number, u: any) => sum + u.totalKg, 0).toFixed(2)} kg
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Financials Section */}
       <div className="space-y-4">
@@ -623,6 +949,9 @@ const Index = () => {
           </Card>
         </div>
       </div>
+
+      {/* Monthly Production Metrics by Quality */}
+      <MonthlyProductionCard workerSheetData={workerSheetData} qualities={qualities} />
 
       {/* Production Section */}
       <div className="space-y-4">

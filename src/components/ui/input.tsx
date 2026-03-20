@@ -3,7 +3,23 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, onFocus, onBlur, ...props }, ref) => {
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      // Clear the field if the current value is 0 so user can type immediately
+      if (type === "number" && (e.target.value === "0" || e.target.value === "0.0" || e.target.value === "0.00")) {
+        e.target.value = "";
+      }
+      onFocus?.(e);
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      // Restore 0 if the field is left empty
+      if (type === "number" && e.target.value === "") {
+        e.target.value = "0";
+      }
+      onBlur?.(e);
+    };
+
     return (
       <input
         type={type}
@@ -12,6 +28,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className,
         )}
         ref={ref}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         {...props}
       />
     );
