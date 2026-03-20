@@ -11,6 +11,8 @@ const createWindow = () => {
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 800,
+        show: false, // Don't show window until ready
+        backgroundColor: '#ffffff', // Set background color to match your app
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
@@ -32,6 +34,20 @@ const createWindow = () => {
         console.log('Loading index.html from:', indexPath);
         mainWindow.loadFile(indexPath);
     }
+
+    // Show window when ready to avoid white screen
+    mainWindow.once('ready-to-show', () => {
+        mainWindow?.show();
+    });
+
+    // Handle external links (like WhatsApp, Gmail) to open in default browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('https://')) {
+            shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
 };
 
 // This method will be called when Electron has finished
@@ -125,15 +141,44 @@ function setupIpcHandlers() {
 
     ipcMain.handle('db-add', async (event, factory: string, tableName: string, item: any) => {
         try {
-            if (!isValidTable(tableName)) throw new Error(`Invalid table: ${tableName}`);
+            console.log(`[DB] db-add called: factory=${factory}, table=${tableName}, item keys=${Object.keys(item).join(',')}`);
+
+            if (!isValidTable(tableName)) {
+                const validTables = Object.keys(schema);
+                throw new Error(`Invalid table: ${tableName}. Valid tables: ${validTables.join(', ')}`);
+            }
+
             const db = getDb(factory);
             const schemaKey = getSchemaTableKey(tableName);
+            console.log(`[DB] Schema key for ${tableName}: ${schemaKey}`);
+
             const table = (schema as any)[schemaKey] || (schema as any)[tableName];
-            if (!table) throw new Error(`Table object not found for: ${tableName} (key: ${schemaKey})`);
+            if (!table) {
+                const validTables = Object.keys(schema);
+                throw new Error(`Table object not found for: ${tableName} (key: ${schemaKey}). Available: ${validTables.join(', ')}`);
+            }
 
             // Encrypt sensitive fields before writing
             const encryptedItem = encryptionManager.encryptRecord(tableName, item);
-            await db.insert(table).values(encryptedItem).run();
+            console.log(`[DB] Encrypted item keys: ${Object.keys(encryptedItem).join(',')}`);
+
+            // Add better error handling for Windows file locking issues
+            try {
+                await db.insert(table).values(encryptedItem).run();
+                console.log(`[DB] Successfully inserted into ${tableName}`);
+            } catch (dbError: any) {
+                console.error(`[DB] Insert error for ${tableName}:`, dbError);
+                // Check if it's a file locking issue on Windows
+                if (dbError.message && (dbError.message.includes('database is locked') || dbError.message.includes('SQLITE_BUSY'))) {
+                    console.log(`[DB] Database locked, retrying...`);
+                    // Retry once after a short delay
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await db.insert(table).values(encryptedItem).run();
+                } else {
+                    throw dbError;
+                }
+            }
+
             return { success: true };
         } catch (e: any) {
             console.error(`[DB] Error in db-add ${tableName}:`, e);
@@ -165,7 +210,19 @@ function setupIpcHandlers() {
             const table = schema[schemaKey] || schema[tableName];
             // Encrypt sensitive fields before writing
             const encryptedItem = encryptionManager.encryptRecord(tableName, item);
-            await db.update(table).set(encryptedItem).where(eq(table.id, item.id)).run();
+
+            try {
+                await db.update(table).set(encryptedItem).where(eq(table.id, item.id)).run();
+            } catch (dbError: any) {
+                // Retry on database lock
+                if (dbError.message && (dbError.message.includes('database is locked') || dbError.message.includes('SQLITE_BUSY'))) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await db.update(table).set(encryptedItem).where(eq(table.id, item.id)).run();
+                } else {
+                    throw dbError;
+                }
+            }
+
             return true;
         } catch (e: any) {
             console.error(`[DB] Error in db-update ${tableName}:`, e);
@@ -508,7 +565,7 @@ function setupIpcHandlers() {
             // Listen for navigation to redirect URI
             authWindow.webContents.on('will-navigate', async (event, navigationUrl) => {
                 const url = new URL(navigationUrl);
-                
+
                 if (url.hostname === 'localhost' && url.pathname === '/oauth/callback') {
                     const code = url.searchParams.get('code');
                     const error = url.searchParams.get('error');
@@ -537,7 +594,7 @@ function setupIpcHandlers() {
                             });
 
                             const tokenData = await tokenResponse.json();
-                            
+
                             if (tokenData.access_token) {
                                 resolve(tokenData.access_token);
                             } else {

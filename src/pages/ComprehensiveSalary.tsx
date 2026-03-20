@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { storage, asyncStorage } from "@/lib/storage";
-import type { WorkerProfile, Quality, BegariWorker, TFOWorker, TFOAttendance, MasterWorker, WiremanWorker, WiremanBill, Beam, BeamPasar, BobbinWorker, BobbinAttendance } from "@/lib/types";
+import type { WorkerProfile, Quality, BegariWorker, TFOWorker, TFOAttendance, MasterWorker, WiremanWorker, WiremanBill, Beam, BeamPasar, BobbinWorker, BobbinAttendance, MonthlySalaryRecord } from "@/lib/types";
 import {
     calculateProductionSalaries,
     calculateWarpingSalaries,
@@ -22,7 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, DollarSign, TrendingUp, Users, AlertTriangle } from "lucide-react";
+import { Calendar, DollarSign, TrendingUp, Users, AlertTriangle, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -36,6 +36,7 @@ export default function ComprehensiveSalaryCalculator() {
     const [activeCycle, setActiveCycle] = useState<'1-15' | '16-30'>('1-15');
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
     const [isLoading, setIsLoading] = useState(true);
+    const [salaryHistory, setSalaryHistory] = useState<MonthlySalaryRecord[]>([]);
 
     // Additional worker types
     const [begariWorkers, setBegariWorkers] = useState<BegariWorker[]>([]);
@@ -51,6 +52,7 @@ export default function ComprehensiveSalaryCalculator() {
 
     useEffect(() => {
         loadData();
+        loadSalaryHistory();
     }, [selectedMonth, activeCycle]);
 
     const loadData = async () => {
@@ -59,7 +61,7 @@ export default function ComprehensiveSalaryCalculator() {
             console.log('=== ComprehensiveSalary: Loading Data ===');
             console.log('Selected Month:', selectedMonth);
             console.log('Active Cycle:', activeCycle);
-            
+
             // Simulate realistic loading
             await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -152,6 +154,20 @@ export default function ComprehensiveSalaryCalculator() {
         }
     };
 
+    const loadSalaryHistory = async () => {
+        try {
+            const records = await asyncStorage.getMonthlySalaryRecords();
+            // Sort by month and cycle descending
+            const sorted = records.sort((a, b) => {
+                if (a.month !== b.month) return b.month.localeCompare(a.month);
+                return b.cycle.localeCompare(a.cycle);
+            });
+            setSalaryHistory(sorted);
+        } catch (error) {
+            console.error('Error loading salary history:', error);
+        }
+    };
+
     // Local salary calculation functions removed. Using utility functions.
 
     // Calculate salary totals with debugging
@@ -187,7 +203,8 @@ export default function ComprehensiveSalaryCalculator() {
     const beamPasarTotal = beamPasarSalaries.reduce((sum, s) => sum + s.amount, 0);
     const grandTotal = productionWorkerTotal + begariTotal + tfoTotal + bobbinTotal + masterTotal + wiremanTotal + warpingTotal + beamPasarTotal;
 
-    const totalWorkers = filteredSheetSalaries.length + begariWorkers.length + tfoWorkers.length + bobbinWorkers.length + masterWorkers.length + wiremanWorkers.length + warpingSalaries.length;
+    const productionWorkerCount = new Set(filteredSalaries.map(s => s.workerId)).size;
+    const totalWorkers = productionWorkerCount + begariWorkers.length + tfoWorkers.length + bobbinWorkers.length + masterWorkers.length + wiremanWorkers.length + warpingSalaries.length;
 
     return (
         <div className="container mx-auto py-6 px-4">
@@ -245,18 +262,20 @@ export default function ComprehensiveSalaryCalculator() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-8 w-24" /> : `${CURRENCY_SYMBOL}${productionWorkerTotal.toFixed(2)}`}</div>
-                        <div className="text-xs text-muted-foreground">{isLoading ? <Skeleton className="h-4 w-20 mt-1" /> : `${filteredSheetSalaries.length} sheets`}</div>
+                        <div className="text-xs text-muted-foreground">{isLoading ? <Skeleton className="h-4 w-20 mt-1" /> : `${productionWorkerCount} workers`}</div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Fixed Salary</CardTitle>
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium">Avg per Worker</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-8 w-24" /> : `${CURRENCY_SYMBOL}${(begariTotal + masterTotal).toFixed(2)}`}</div>
-                        <div className="text-xs text-muted-foreground">{isLoading ? <Skeleton className="h-4 w-24 mt-1" /> : "Begari + Master"}</div>
+                        <div className="text-2xl font-bold">
+                            {isLoading ? <Skeleton className="h-8 w-24" /> : `${CURRENCY_SYMBOL}${totalWorkers > 0 ? (grandTotal / totalWorkers).toFixed(2) : '0.00'}`}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{isLoading ? <Skeleton className="h-4 w-24 mt-1" /> : "Across all roles"}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -733,6 +752,75 @@ export default function ComprehensiveSalaryCalculator() {
                             </Card>
                         </TabsContent>
                     </Tabs>
+                </CardContent>
+            </Card>
+
+            {/* Monthly Salary History */}
+            <Card className="mt-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <History className="h-5 w-5" />
+                        Monthly Salary History
+                    </CardTitle>
+                    <CardDescription>
+                        Historical records of submitted salary calculations
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {salaryHistory.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground border rounded-md">
+                            No salary records submitted yet
+                        </div>
+                    ) : (
+                        <div className="rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Month</TableHead>
+                                        <TableHead>Cycle</TableHead>
+                                        <TableHead className="text-right">Production</TableHead>
+                                        <TableHead className="text-right">Begari</TableHead>
+                                        <TableHead className="text-right">TFO</TableHead>
+                                        <TableHead className="text-right">Bobbin</TableHead>
+                                        <TableHead className="text-right">Master</TableHead>
+                                        <TableHead className="text-right">Wireman</TableHead>
+                                        <TableHead className="text-right">Warping</TableHead>
+                                        <TableHead className="text-right">Beam Pasar</TableHead>
+                                        <TableHead className="text-right">Workers</TableHead>
+                                        <TableHead className="text-right font-semibold">Grand Total</TableHead>
+                                        <TableHead>Submitted</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {salaryHistory.map((record) => (
+                                        <TableRow key={record.id}>
+                                            <TableCell className="font-medium">
+                                                {new Date(record.month + '-01').toLocaleString('default', { month: 'long', year: 'numeric' })}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{record.cycle}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">{CURRENCY_SYMBOL}{record.productionWorkerTotal.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">{CURRENCY_SYMBOL}{record.begariTotal.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">{CURRENCY_SYMBOL}{record.tfoTotal.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">{CURRENCY_SYMBOL}{record.bobbinTotal.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">{CURRENCY_SYMBOL}{record.masterTotal.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">{CURRENCY_SYMBOL}{record.wiremanTotal.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">{CURRENCY_SYMBOL}{record.warpingTotal.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">{CURRENCY_SYMBOL}{record.beamPasarTotal.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">{record.totalWorkers}</TableCell>
+                                            <TableCell className="text-right font-bold text-lg text-primary">
+                                                {CURRENCY_SYMBOL}{record.grandTotal.toFixed(2)}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-muted-foreground">
+                                                {new Date(record.submittedAt).toLocaleString()}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div >

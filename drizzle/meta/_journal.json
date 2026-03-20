@@ -64,6 +64,13 @@
       "when": 1772800000000,
       "tag": "0008_add_overhead_costing",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1772900000000,
+      "tag": "0009_add_monthly_salary_records",
+      "breakpoints": true
     }
   ]
 }

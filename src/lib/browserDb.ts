@@ -28,6 +28,7 @@ import type {
   YarnConsumptionCalculation,
   PurchaseDelivery,
   SaleDelivery,
+  MonthlySalaryRecord,
 } from './types';
 import { TABLE_NAMES } from './types';
 import { getActiveFactoryPrefix } from './factoryContext';
@@ -342,6 +343,12 @@ class BrowserDatabase {
   async addSaleDelivery(d: SaleDelivery): Promise<void> { return this.add(TABLE_NAMES.saleDeliveries, d); }
   async updateSaleDelivery(id: string, d: SaleDelivery): Promise<void> { return this.update(TABLE_NAMES.saleDeliveries, id, d); }
   async deleteSaleDelivery(id: string): Promise<void> { return this.delete(TABLE_NAMES.saleDeliveries, id); }
+
+  // Monthly Salary Records
+  async getMonthlySalaryRecords(): Promise<MonthlySalaryRecord[]> { return this.get<MonthlySalaryRecord>(TABLE_NAMES.monthlySalaryRecords); }
+  async addMonthlySalaryRecord(record: MonthlySalaryRecord): Promise<void> { return this.add(TABLE_NAMES.monthlySalaryRecords, record); }
+  async updateMonthlySalaryRecord(id: string, record: MonthlySalaryRecord): Promise<void> { return this.update(TABLE_NAMES.monthlySalaryRecords, id, record); }
+  async deleteMonthlySalaryRecord(id: string): Promise<void> { return this.delete(TABLE_NAMES.monthlySalaryRecords, id); }
 
   // Database status
   isConnected(): boolean {

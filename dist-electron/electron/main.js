@@ -22,6 +22,8 @@ const createWindow = () => {
     mainWindow = new electron_1.BrowserWindow({
         width: 1280,
         height: 800,
+        show: false, // Don't show window until ready
+        backgroundColor: '#ffffff', // Set background color to match your app
         webPreferences: {
             preload: path_1.default.join(__dirname, 'preload.js'),
             nodeIntegration: false,
@@ -42,6 +44,18 @@ const createWindow = () => {
         console.log('Loading index.html from:', indexPath);
         mainWindow.loadFile(indexPath);
     }
+    // Show window when ready to avoid white screen
+    mainWindow.once('ready-to-show', () => {
+        mainWindow === null || mainWindow === void 0 ? void 0 : mainWindow.show();
+    });
+    // Handle external links (like WhatsApp, Gmail) to open in default browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('https://')) {
+            electron_1.shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
 };
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -125,16 +139,40 @@ function setupIpcHandlers() {
     }));
     electron_1.ipcMain.handle('db-add', (event, factory, tableName, item) => __awaiter(this, void 0, void 0, function* () {
         try {
-            if (!(0, db_1.isValidTable)(tableName))
-                throw new Error(`Invalid table: ${tableName}`);
+            console.log(`[DB] db-add called: factory=${factory}, table=${tableName}, item keys=${Object.keys(item).join(',')}`);
+            if (!(0, db_1.isValidTable)(tableName)) {
+                const validTables = Object.keys(db_1.schema);
+                throw new Error(`Invalid table: ${tableName}. Valid tables: ${validTables.join(', ')}`);
+            }
             const db = (0, db_1.getDb)(factory);
             const schemaKey = (0, db_1.getSchemaTableKey)(tableName);
+            console.log(`[DB] Schema key for ${tableName}: ${schemaKey}`);
             const table = db_1.schema[schemaKey] || db_1.schema[tableName];
-            if (!table)
-                throw new Error(`Table object not found for: ${tableName} (key: ${schemaKey})`);
+            if (!table) {
+                const validTables = Object.keys(db_1.schema);
+                throw new Error(`Table object not found for: ${tableName} (key: ${schemaKey}). Available: ${validTables.join(', ')}`);
+            }
             // Encrypt sensitive fields before writing
             const encryptedItem = encryption_1.encryptionManager.encryptRecord(tableName, item);
-            yield db.insert(table).values(encryptedItem).run();
+            console.log(`[DB] Encrypted item keys: ${Object.keys(encryptedItem).join(',')}`);
+            // Add better error handling for Windows file locking issues
+            try {
+                yield db.insert(table).values(encryptedItem).run();
+                console.log(`[DB] Successfully inserted into ${tableName}`);
+            }
+            catch (dbError) {
+                console.error(`[DB] Insert error for ${tableName}:`, dbError);
+                // Check if it's a file locking issue on Windows
+                if (dbError.message && (dbError.message.includes('database is locked') || dbError.message.includes('SQLITE_BUSY'))) {
+                    console.log(`[DB] Database locked, retrying...`);
+                    // Retry once after a short delay
+                    yield new Promise(resolve => setTimeout(resolve, 100));
+                    yield db.insert(table).values(encryptedItem).run();
+                }
+                else {
+                    throw dbError;
+                }
+            }
             return { success: true };
         }
         catch (e) {
@@ -168,7 +206,19 @@ function setupIpcHandlers() {
             const table = db_1.schema[schemaKey] || db_1.schema[tableName];
             // Encrypt sensitive fields before writing
             const encryptedItem = encryption_1.encryptionManager.encryptRecord(tableName, item);
-            yield db.update(table).set(encryptedItem).where((0, drizzle_orm_1.eq)(table.id, item.id)).run();
+            try {
+                yield db.update(table).set(encryptedItem).where((0, drizzle_orm_1.eq)(table.id, item.id)).run();
+            }
+            catch (dbError) {
+                // Retry on database lock
+                if (dbError.message && (dbError.message.includes('database is locked') || dbError.message.includes('SQLITE_BUSY'))) {
+                    yield new Promise(resolve => setTimeout(resolve, 100));
+                    yield db.update(table).set(encryptedItem).where((0, drizzle_orm_1.eq)(table.id, item.id)).run();
+                }
+                else {
+                    throw dbError;
+                }
+            }
             return true;
         }
         catch (e) {

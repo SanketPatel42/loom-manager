@@ -177,7 +177,7 @@ export default function Stock() {
 
   const handleWhatsappShare = () => {
     const text = generateReport();
-    window.open(`https://web.whatsapp.com/send?text=${text}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };
 
   return (

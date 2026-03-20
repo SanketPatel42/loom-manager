@@ -26,6 +26,7 @@ export default function Qualities() {
     epi: 0,
     ppi: 0,
     danier: "",
+    description: "",
   });
   const { toast } = useToast();
 
@@ -34,10 +35,24 @@ export default function Qualities() {
     setSubmitting(true);
 
     try {
+      // Validate required fields
+      if (!formData.name || !formData.ratePerMeter) {
+        throw new Error('Quality Name and Rate per Meter are required');
+      }
+
       const quality: Quality = {
         id: editingId || Date.now().toString(),
-        ...formData,
-        createdAt: new Date().toISOString(),
+        name: formData.name,
+        ratePerMeter: formData.ratePerMeter,
+        tars: formData.tars,
+        beamRate: formData.beamRate,
+        beamPasarRate: formData.beamPasarRate,
+        description: formData.description || undefined,
+        epi: formData.epi || undefined,
+        ppi: formData.ppi || undefined,
+        danier: formData.danier || undefined,
+        warpWeight: formData.warpWeight || undefined,
+        // Don't include createdAt/updatedAt - let the database handle these
       };
 
       if (editingId) {
@@ -50,9 +65,11 @@ export default function Qualities() {
 
       resetForm();
     } catch (error) {
+      console.error('Error saving quality:', error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to save quality. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to save quality. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -71,6 +88,7 @@ export default function Qualities() {
       epi: quality.epi || 0,
       ppi: quality.ppi || 0,
       danier: quality.danier || "",
+      description: quality.description || "",
     });
     setEditingId(quality.id);
     setIsAdding(true);
@@ -105,6 +123,7 @@ export default function Qualities() {
       epi: 0,
       ppi: 0,
       danier: "",
+      description: "",
     });
     setIsAdding(false);
     setEditingId(null);

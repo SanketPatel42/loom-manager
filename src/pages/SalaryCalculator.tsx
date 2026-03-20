@@ -16,10 +16,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Helper to get CellData from legacy or new format
 const getCellData = (cellValue: any): { value: number; color: string | null } => {
-    if (typeof cellValue === 'object' && cellValue !== null && 'value' in cellValue) {
-        return cellValue;
-    }
-    return { value: typeof cellValue === 'number' ? cellValue : 0, color: null };
+  if (typeof cellValue === 'object' && cellValue !== null && 'value' in cellValue) {
+    return cellValue;
+  }
+  return { value: typeof cellValue === 'number' ? cellValue : 0, color: null };
 };
 
 const { MACHINES_PER_SHEET, TOTAL_SHEETS, CURRENCY_SYMBOL } = APP_CONSTANTS;
@@ -75,7 +75,7 @@ export default function SalaryCalculator() {
           assignments: Object.keys(sheetData.assignments).length,
           gridData: Object.keys(sheetData.gridData).length
         });
-        
+
         const calculatedSalaries = calculateSalaries(sheetData, workerProfiles, qualityData, activeCycle);
         console.log('Calculated salaries result:', calculatedSalaries.length, calculatedSalaries);
         setSalaryData(calculatedSalaries);
@@ -132,11 +132,11 @@ export default function SalaryCalculator() {
     console.log('Qualities:', qualities.length);
     console.log('Sheet Data Available:', !!sheetData);
     console.log('Active Cycle:', activeCycle);
-    
+
     if (sheetData) {
       console.log('Assignments:', Object.keys(sheetData.assignments).length);
       console.log('Grid Data:', Object.keys(sheetData.gridData).length);
-      
+
       // Check for any production data
       let hasAnyProduction = false;
       let totalProductionValue = 0;
@@ -154,7 +154,7 @@ export default function SalaryCalculator() {
       });
       console.log('Has any production data:', hasAnyProduction);
       console.log('Total production value:', totalProductionValue);
-      
+
       // Check assignments
       Object.entries(sheetData.assignments).forEach(([sheetKey, assignment]: [string, any]) => {
         console.log(`Sheet ${sheetKey} assignment:`, {
@@ -164,7 +164,7 @@ export default function SalaryCalculator() {
         });
       });
     }
-    
+
     alert('Check browser console for detailed diagnostic information');
   };
 
@@ -288,9 +288,9 @@ export default function SalaryCalculator() {
                     <p className="mt-4">
                       <strong>Next steps:</strong> Check the "Worker & Machine Sheet" page to enter production data and assign workers.
                     </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="mt-4"
                       onClick={showDiagnosticInfo}
                     >
@@ -409,6 +409,7 @@ export default function SalaryCalculator() {
                                         <TableHead>Quality Name</TableHead>
                                         <TableHead className="text-right">Rate / Meter</TableHead>
                                         <TableHead className="text-right">Total Meters</TableHead>
+                                        <TableHead className="text-right">Avg / Day</TableHead>
                                         <TableHead className="text-right">Total Amount</TableHead>
                                       </TableRow>
                                     </TableHeader>
@@ -418,11 +419,14 @@ export default function SalaryCalculator() {
                                           <TableCell>{item.qualityName}</TableCell>
                                           <TableCell className="text-right">{CURRENCY_SYMBOL}{item.rate.toFixed(2)}</TableCell>
                                           <TableCell className="text-right">{item.totalMeters.toFixed(2)} m</TableCell>
+                                          <TableCell className="text-right text-muted-foreground">
+                                            {item.totalDays > 0 ? (item.totalMeters / item.totalDays).toFixed(1) : '0.0'} m/d
+                                          </TableCell>
                                           <TableCell className="text-right font-medium">{CURRENCY_SYMBOL}{item.totalAmount.toFixed(2)}</TableCell>
                                         </TableRow>
                                       ))}
                                       <TableRow className="bg-muted/50 font-medium">
-                                        <TableCell colSpan={3}>Total</TableCell>
+                                        <TableCell colSpan={4}>Total</TableCell>
                                         <TableCell className="text-right">
                                           {CURRENCY_SYMBOL}{salary.qualityBreakdown.reduce((sum, item) => sum + item.totalAmount, 0).toFixed(2)}
                                         </TableCell>
@@ -601,6 +605,7 @@ export default function SalaryCalculator() {
                                         <TableHead>Quality Name</TableHead>
                                         <TableHead className="text-right">Rate / Meter</TableHead>
                                         <TableHead className="text-right">Total Meters</TableHead>
+                                        <TableHead className="text-right">Avg / Day</TableHead>
                                         <TableHead className="text-right">Total Amount</TableHead>
                                       </TableRow>
                                     </TableHeader>
@@ -610,11 +615,14 @@ export default function SalaryCalculator() {
                                           <TableCell>{item.qualityName}</TableCell>
                                           <TableCell className="text-right">₹{item.rate.toFixed(2)}</TableCell>
                                           <TableCell className="text-right">{item.totalMeters.toFixed(2)} m</TableCell>
+                                          <TableCell className="text-right text-muted-foreground">
+                                            {item.totalDays > 0 ? (item.totalMeters / item.totalDays).toFixed(1) : '0.0'} m/d
+                                          </TableCell>
                                           <TableCell className="text-right font-medium">₹{item.totalAmount.toFixed(2)}</TableCell>
                                         </TableRow>
                                       ))}
                                       <TableRow className="bg-muted/50 font-medium">
-                                        <TableCell colSpan={3}>Total</TableCell>
+                                        <TableCell colSpan={4}>Total</TableCell>
                                         <TableCell className="text-right">
                                           ₹{salary.qualityBreakdown.reduce((sum, item) => sum + item.totalAmount, 0).toFixed(2)}
                                         </TableCell>

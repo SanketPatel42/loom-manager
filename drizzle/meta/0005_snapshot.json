@@ -1,0 +1,13 @@
+{
+    "version": "5",
+    "dialect": "sqlite",
+    "id": "0005_add_warp_weight_to_qualities",
+    "prevId": "0004_add_sales_payment_fields",
+    "tables": {},
+    "enums": {},
+    "_meta": {
+        "schemas": {},
+        "tables": {},
+        "columns": {}
+    }
+}

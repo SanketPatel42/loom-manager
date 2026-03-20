@@ -1,0 +1,13 @@
+{
+    "version": "5",
+    "dialect": "sqlite",
+    "id": "0006_add_yarn_used_kg_to_beams",
+    "prevId": "0005_add_warp_weight_to_qualities",
+    "tables": {},
+    "enums": {},
+    "_meta": {
+        "schemas": {},
+        "tables": {},
+        "columns": {}
+    }
+}

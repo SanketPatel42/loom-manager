@@ -27,7 +27,8 @@ import type {
     WarpingProductionCalculation,
     YarnConsumptionCalculation,
     PurchaseDelivery,
-    SaleDelivery
+    SaleDelivery,
+    MonthlySalaryRecord
 } from './types';
 import { TABLE_NAMES, ALL_DATA_TABLES } from './types';
 import { getActiveFactoryPrefix } from './factoryContext';
@@ -302,6 +303,12 @@ class ElectronDatabase {
         }
         window.localStorage.clear();
     }
+
+    // Monthly Salary Records operations
+    async getMonthlySalaryRecords(): Promise<MonthlySalaryRecord[]> { return this.get<MonthlySalaryRecord>(TABLE_NAMES.monthlySalaryRecords); }
+    async addMonthlySalaryRecord(record: MonthlySalaryRecord): Promise<void> { return this.add(TABLE_NAMES.monthlySalaryRecords, record); }
+    async updateMonthlySalaryRecord(id: string, record: MonthlySalaryRecord): Promise<void> { return this.update(TABLE_NAMES.monthlySalaryRecords, id, record); }
+    async deleteMonthlySalaryRecord(id: string): Promise<void> { return this.delete(TABLE_NAMES.monthlySalaryRecords, id); }
 
     // Export data (for backup)
     async exportData(): Promise<Record<string, any[]>> {

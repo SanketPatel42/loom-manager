@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saleDeliveries = exports.purchaseDeliveries = exports.yarnConsumptions = exports.warpingProductions = exports.tfoProductions = exports.qualityCalculations = exports.gsmCalculations = exports.fabricCalculations = exports.yarnConversions = exports.bobbinAttendance = exports.bobbinWorkers = exports.wiremanBills = exports.wiremanWorkers = exports.masterWorkers = exports.tfoAttendance = exports.tfoWorkers = exports.begariWorkers = exports.notes = exports.workerSheetData = exports.beamPasar = exports.stock = exports.transactions = exports.firms = exports.purchases = exports.sales = exports.qualities = exports.workerProfiles = exports.takas = exports.beams = void 0;
+exports.monthlySalaryRecords = exports.monthlyProduction = exports.overheadEntries = exports.qualityCosting = exports.saleDeliveries = exports.purchaseDeliveries = exports.yarnConsumptions = exports.warpingProductions = exports.tfoProductions = exports.qualityCalculations = exports.gsmCalculations = exports.fabricCalculations = exports.yarnConversions = exports.bobbinAttendance = exports.bobbinWorkers = exports.wiremanBills = exports.wiremanWorkers = exports.masterWorkers = exports.tfoAttendance = exports.tfoWorkers = exports.begariWorkers = exports.notes = exports.workerSheetData = exports.beamPasar = exports.stock = exports.transactions = exports.firms = exports.purchases = exports.sales = exports.qualities = exports.workerProfiles = exports.takas = exports.beams = void 0;
 const sqlite_core_1 = require("drizzle-orm/sqlite-core");
 // Beams table
 exports.beams = (0, sqlite_core_1.sqliteTable)('beams', {
@@ -13,8 +13,9 @@ exports.beams = (0, sqlite_core_1.sqliteTable)('beams', {
     pricePerBeam: (0, sqlite_core_1.real)('price_per_beam').notNull(),
     total: (0, sqlite_core_1.real)('total').notNull(),
     qualityId: (0, sqlite_core_1.text)('quality_id'),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    yarnUsedKg: (0, sqlite_core_1.real)('yarn_used_kg'),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Takas table
 exports.takas = (0, sqlite_core_1.sqliteTable)('takas', {
@@ -24,8 +25,8 @@ exports.takas = (0, sqlite_core_1.sqliteTable)('takas', {
     folded: (0, sqlite_core_1.real)('folded').notNull(),
     remaining: (0, sqlite_core_1.real)('remaining').notNull(),
     qualityId: (0, sqlite_core_1.text)('quality_id'),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Worker Profiles table
 exports.workerProfiles = (0, sqlite_core_1.sqliteTable)('worker_profiles', {
@@ -33,8 +34,8 @@ exports.workerProfiles = (0, sqlite_core_1.sqliteTable)('worker_profiles', {
     name: (0, sqlite_core_1.text)('name').notNull(),
     phoneNumber: (0, sqlite_core_1.text)('phone_number').notNull(),
     emergencyContact: (0, sqlite_core_1.text)('emergency_contact').notNull(),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Qualities table
 exports.qualities = (0, sqlite_core_1.sqliteTable)('qualities', {
@@ -48,8 +49,9 @@ exports.qualities = (0, sqlite_core_1.sqliteTable)('qualities', {
     tars: (0, sqlite_core_1.real)('tars'),
     beamRate: (0, sqlite_core_1.real)('beam_rate'),
     beamPasarRate: (0, sqlite_core_1.real)('beam_pasar_rate'),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    warpWeight: (0, sqlite_core_1.real)('warp_weight'),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Sales table
 exports.sales = (0, sqlite_core_1.sqliteTable)('sales', {
@@ -65,21 +67,21 @@ exports.sales = (0, sqlite_core_1.sqliteTable)('sales', {
     paymentTerms: (0, sqlite_core_1.integer)('payment_terms').notNull(),
     expectedPaymentDate: (0, sqlite_core_1.text)('expected_payment_date').notNull(),
     status: (0, sqlite_core_1.text)('status').notNull().default('pending'),
-    type: (0, sqlite_core_1.text)('type').notNull().default('spot'), // 'spot' | 'advance'
+    type: (0, sqlite_core_1.text)('type').notNull().default('spot'),
     qualityId: (0, sqlite_core_1.text)('quality_id'),
-    paymentMethod: (0, sqlite_core_1.text)('payment_method'), // 'RTGS' | 'Cheque' | 'Cash' | 'Other'
+    paymentMethod: (0, sqlite_core_1.text)('payment_method'),
     paidAmount: (0, sqlite_core_1.real)('paid_amount'),
     billNumbers: (0, sqlite_core_1.text)('bill_numbers'),
     paymentDate: (0, sqlite_core_1.text)('payment_date'),
     paymentNotes: (0, sqlite_core_1.text)('payment_notes'),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 exports.purchases = (0, sqlite_core_1.sqliteTable)('purchases', {
     id: (0, sqlite_core_1.text)('id').primaryKey(),
     date: (0, sqlite_core_1.text)('date').notNull(),
     supplier: (0, sqlite_core_1.text)('supplier').notNull(),
-    type: (0, sqlite_core_1.text)('type').notNull().default('yarn'), // 'yarn' | 'beam'
+    type: (0, sqlite_core_1.text)('type').notNull().default('yarn'),
     yarnType: (0, sqlite_core_1.text)('yarn_type'),
     danier: (0, sqlite_core_1.text)('danier'),
     tons: (0, sqlite_core_1.real)('tons'),
@@ -90,8 +92,8 @@ exports.purchases = (0, sqlite_core_1.sqliteTable)('purchases', {
     tars: (0, sqlite_core_1.real)('tars'),
     meters: (0, sqlite_core_1.real)('meters'),
     total: (0, sqlite_core_1.real)('total').notNull(),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Firms table
 exports.firms = (0, sqlite_core_1.sqliteTable)('firms', {
@@ -103,8 +105,8 @@ exports.firms = (0, sqlite_core_1.sqliteTable)('firms', {
     phoneNumber: (0, sqlite_core_1.text)('phone_number').notNull(),
     email: (0, sqlite_core_1.text)('email').notNull(),
     documents: (0, sqlite_core_1.text)('documents', { mode: 'json' }).default('[]'),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Transactions table
 exports.transactions = (0, sqlite_core_1.sqliteTable)('transactions', {
@@ -115,8 +117,8 @@ exports.transactions = (0, sqlite_core_1.sqliteTable)('transactions', {
     amount: (0, sqlite_core_1.real)('amount').notNull(),
     purpose: (0, sqlite_core_1.text)('purpose').notNull(),
     payee: (0, sqlite_core_1.text)('payee').notNull(),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Stock table
 exports.stock = (0, sqlite_core_1.sqliteTable)('stock', {
@@ -124,21 +126,21 @@ exports.stock = (0, sqlite_core_1.sqliteTable)('stock', {
     date: (0, sqlite_core_1.text)('date').notNull(),
     yarnCount: (0, sqlite_core_1.text)('yarn_count').notNull(),
     boxesAvailable: (0, sqlite_core_1.integer)('boxes_available').notNull(),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Beam Pasar table
 exports.beamPasar = (0, sqlite_core_1.sqliteTable)('beam_pasar', {
     id: (0, sqlite_core_1.text)('id').primaryKey(),
     date: (0, sqlite_core_1.text)('date').notNull(),
     beamNo: (0, sqlite_core_1.text)('beam_no').notNull(),
-    count: (0, sqlite_core_1.integer)('count'), // Optional in interface
+    count: (0, sqlite_core_1.integer)('count'),
     tars: (0, sqlite_core_1.integer)('tars').notNull(),
-    noOfTaka: (0, sqlite_core_1.integer)('no_of_taka'), // Optional in interface
+    noOfTaka: (0, sqlite_core_1.integer)('no_of_taka'),
     ratePerBeam: (0, sqlite_core_1.real)('rate_per_beam').notNull(),
     qualityId: (0, sqlite_core_1.text)('quality_id'),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Worker Sheet Data table
 exports.workerSheetData = (0, sqlite_core_1.sqliteTable)('worker_sheet_data', {
@@ -146,8 +148,8 @@ exports.workerSheetData = (0, sqlite_core_1.sqliteTable)('worker_sheet_data', {
     assignments: (0, sqlite_core_1.text)('assignments', { mode: 'json' }).notNull(),
     gridData: (0, sqlite_core_1.text)('grid_data', { mode: 'json' }).notNull(),
     lastUpdated: (0, sqlite_core_1.text)('last_updated').default((new Date().toISOString())),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Notes table
 exports.notes = (0, sqlite_core_1.sqliteTable)('notes', {
@@ -159,7 +161,6 @@ exports.notes = (0, sqlite_core_1.sqliteTable)('notes', {
     completed: (0, sqlite_core_1.integer)('completed', { mode: 'boolean' }).default(false),
     createdAt: (0, sqlite_core_1.text)('created_at').notNull(),
 });
-// Additional Workers & Attendance
 // Begari Workers
 exports.begariWorkers = (0, sqlite_core_1.sqliteTable)('begari_workers', {
     id: (0, sqlite_core_1.text)('id').primaryKey(),
@@ -181,8 +182,8 @@ exports.tfoAttendance = (0, sqlite_core_1.sqliteTable)('tfo_attendance', {
     id: (0, sqlite_core_1.text)('id').primaryKey(),
     workerId: (0, sqlite_core_1.text)('worker_id').notNull(),
     date: (0, sqlite_core_1.text)('date').notNull(),
-    type: (0, sqlite_core_1.text)('type').notNull(), // 'full' | 'half'
-    cycle: (0, sqlite_core_1.text)('cycle').notNull(), // '1-15' | '16-30'
+    type: (0, sqlite_core_1.text)('type').notNull(),
+    cycle: (0, sqlite_core_1.text)('cycle').notNull(),
 });
 // Master Workers
 exports.masterWorkers = (0, sqlite_core_1.sqliteTable)('master_workers', {
@@ -221,17 +222,16 @@ exports.bobbinAttendance = (0, sqlite_core_1.sqliteTable)('bobbin_attendance', {
     id: (0, sqlite_core_1.text)('id').primaryKey(),
     workerId: (0, sqlite_core_1.text)('worker_id').notNull(),
     date: (0, sqlite_core_1.text)('date').notNull(),
-    type: (0, sqlite_core_1.text)('type').notNull(), // 'full' | 'half'
+    type: (0, sqlite_core_1.text)('type').notNull(),
     cycle: (0, sqlite_core_1.text)('cycle').notNull(),
 });
-// Textile Calculations
 // Yarn Conversion Calculations
 exports.yarnConversions = (0, sqlite_core_1.sqliteTable)('yarn_conversions', {
     id: (0, sqlite_core_1.text)('id').primaryKey(),
     name: (0, sqlite_core_1.text)('name').notNull(),
     date: (0, sqlite_core_1.text)('date').notNull(),
     type: (0, sqlite_core_1.text)('type').notNull(),
-    data: (0, sqlite_core_1.text)('data', { mode: 'json' }).notNull(), // Store all flexible fields as JSON
+    data: (0, sqlite_core_1.text)('data', { mode: 'json' }).notNull(),
     result: (0, sqlite_core_1.real)('result').notNull(),
     resultUnit: (0, sqlite_core_1.text)('result_unit').notNull(),
 });
@@ -304,14 +304,14 @@ exports.purchaseDeliveries = (0, sqlite_core_1.sqliteTable)('purchase_deliveries
     id: (0, sqlite_core_1.text)('id').primaryKey(),
     purchaseId: (0, sqlite_core_1.text)('purchase_id').notNull(),
     date: (0, sqlite_core_1.text)('date').notNull(),
-    kg: (0, sqlite_core_1.real)('kg'), // for yarn
-    numberOfBeams: (0, sqlite_core_1.real)('number_of_beams'), // for beam purchases (batch)
-    beamNo: (0, sqlite_core_1.text)('beam_no'), // for beams
-    weight: (0, sqlite_core_1.real)('weight'), // for beams
-    meters: (0, sqlite_core_1.real)('meters'), // for beams
+    kg: (0, sqlite_core_1.real)('kg'),
+    numberOfBeams: (0, sqlite_core_1.real)('number_of_beams'),
+    beamNo: (0, sqlite_core_1.text)('beam_no'),
+    weight: (0, sqlite_core_1.real)('weight'),
+    meters: (0, sqlite_core_1.real)('meters'),
     notes: (0, sqlite_core_1.text)('notes'),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 // Sale Deliveries table
 exports.saleDeliveries = (0, sqlite_core_1.sqliteTable)('sale_deliveries', {
@@ -321,7 +321,54 @@ exports.saleDeliveries = (0, sqlite_core_1.sqliteTable)('sale_deliveries', {
     takas: (0, sqlite_core_1.real)('takas').notNull(),
     meters: (0, sqlite_core_1.real)('meters').notNull(),
     notes: (0, sqlite_core_1.text)('notes'),
-    createdAt: (0, sqlite_core_1.integer)('created_at').default((Date.now())),
-    updatedAt: (0, sqlite_core_1.integer)('updated_at').default((Date.now())),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
+});
+// Quality Costing table
+exports.qualityCosting = (0, sqlite_core_1.sqliteTable)('quality_costing', {
+    id: (0, sqlite_core_1.text)('id').primaryKey(),
+    qualityId: (0, sqlite_core_1.text)('quality_id').notNull(),
+    warpRate: (0, sqlite_core_1.real)('warp_rate').notNull().default(0),
+    weftRate: (0, sqlite_core_1.real)('weft_rate').notNull().default(0),
+    extraCosts: (0, sqlite_core_1.text)('extra_costs', { mode: 'json' }).default('[]'),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
+});
+// Overhead Entries table
+exports.overheadEntries = (0, sqlite_core_1.sqliteTable)('overhead_entries', {
+    id: (0, sqlite_core_1.text)('id').primaryKey(),
+    month: (0, sqlite_core_1.text)('month').notNull(),
+    name: (0, sqlite_core_1.text)('name').notNull(),
+    amount: (0, sqlite_core_1.real)('amount').notNull(),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
+});
+// Monthly Production table
+exports.monthlyProduction = (0, sqlite_core_1.sqliteTable)('monthly_production', {
+    id: (0, sqlite_core_1.text)('id').primaryKey(),
+    month: (0, sqlite_core_1.text)('month').notNull(),
+    qualityId: (0, sqlite_core_1.text)('quality_id').notNull(),
+    metersProduced: (0, sqlite_core_1.real)('meters_produced').notNull(),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
+});
+// Monthly Salary Records table
+exports.monthlySalaryRecords = (0, sqlite_core_1.sqliteTable)('monthly_salary_records', {
+    id: (0, sqlite_core_1.text)('id').primaryKey(),
+    month: (0, sqlite_core_1.text)('month').notNull(),
+    cycle: (0, sqlite_core_1.text)('cycle').notNull(),
+    productionWorkerTotal: (0, sqlite_core_1.real)('production_worker_total').notNull().default(0),
+    begariTotal: (0, sqlite_core_1.real)('begari_total').notNull().default(0),
+    tfoTotal: (0, sqlite_core_1.real)('tfo_total').notNull().default(0),
+    bobbinTotal: (0, sqlite_core_1.real)('bobbin_total').notNull().default(0),
+    masterTotal: (0, sqlite_core_1.real)('master_total').notNull().default(0),
+    wiremanTotal: (0, sqlite_core_1.real)('wireman_total').notNull().default(0),
+    warpingTotal: (0, sqlite_core_1.real)('warping_total').notNull().default(0),
+    beamPasarTotal: (0, sqlite_core_1.real)('beam_pasar_total').notNull().default(0),
+    grandTotal: (0, sqlite_core_1.real)('grand_total').notNull().default(0),
+    totalWorkers: (0, sqlite_core_1.integer)('total_workers').notNull().default(0),
+    submittedAt: (0, sqlite_core_1.text)('submitted_at').notNull(),
+    createdAt: (0, sqlite_core_1.integer)('created_at'),
+    updatedAt: (0, sqlite_core_1.integer)('updated_at'),
 });
 //# sourceMappingURL=schema.js.map

@@ -6,6 +6,7 @@ export interface QualityBreakdown {
     rate: number;
     totalMeters: number;
     totalAmount: number;
+    totalDays: number;
 }
 
 export interface SheetEntry {
@@ -58,15 +59,15 @@ export const calculateSalaries = (
     console.log('Filter Cycle:', filterCycle);
     console.log('Worker Profiles:', workerProfiles.length);
     console.log('Quality Data:', qualityData.length);
-    
+
     const { assignments, gridData } = sheetData;
     console.log('Assignments:', Object.keys(assignments).length);
     console.log('Grid Data:', Object.keys(gridData).length);
-    
-    const salaries: Record<string, WorkerSalary> = {};
-    const workerQualityStats: Record<string, Record<string, { qualityName: string; rate: number; totalMeters: number; totalAmount: number }>> = {};
 
-    const updateQualityStats = (workerId: string, quality: Quality | undefined, meters: number, amount: number) => {
+    const salaries: Record<string, WorkerSalary> = {};
+    const workerQualityStats: Record<string, Record<string, { qualityName: string; rate: number; totalMeters: number; totalAmount: number; activeDays: Set<number> }>> = {};
+
+    const updateQualityStats = (workerId: string, quality: Quality | undefined, meters: number, amount: number, dayNum: number) => {
         if (!workerId || amount === 0) return;
 
         if (!workerQualityStats[workerId]) {
@@ -82,12 +83,14 @@ export const calculateSalaries = (
                 qualityName: qualityName,
                 rate: rate,
                 totalMeters: 0,
-                totalAmount: 0
+                totalAmount: 0,
+                activeDays: new Set<number>()
             };
         }
 
         workerQualityStats[workerId][qualityId].totalMeters += meters;
         workerQualityStats[workerId][qualityId].totalAmount += amount;
+        workerQualityStats[workerId][qualityId].activeDays.add(dayNum);
     };
 
     let totalProcessedRows = 0;
@@ -118,7 +121,7 @@ export const calculateSalaries = (
                 // Filter by day number based on filterCycle
                 const matchesCycle = filterCycle === '1-15' ? dayNum <= 15 : dayNum > 15;
                 if (!matchesCycle) return;
-                
+
                 totalMatchingRows++;
 
                 const dayCell = getCellData(row[`machine${machineIdx}_day`]);
@@ -156,7 +159,7 @@ export const calculateSalaries = (
 
                 // Process Day Worker
                 if (dayWorkerId) {
-                    updateQualityStats(dayWorkerId, dayQuality, dayCell.value, dayAmount);
+                    updateQualityStats(dayWorkerId, dayQuality, dayCell.value, dayAmount, dayNum);
 
                     if (!salaries[dayWorkerId]) {
                         const worker = workerProfiles.find(w => w.id === dayWorkerId);
@@ -195,7 +198,7 @@ export const calculateSalaries = (
 
                 // Process Night Worker
                 if (nightWorkerId) {
-                    updateQualityStats(nightWorkerId, nightQuality, nightCell.value, nightAmount);
+                    updateQualityStats(nightWorkerId, nightQuality, nightCell.value, nightAmount, dayNum);
 
                     if (!salaries[nightWorkerId]) {
                         const worker = workerProfiles.find(w => w.id === nightWorkerId);
@@ -244,7 +247,15 @@ export const calculateSalaries = (
     Object.keys(salaries).forEach(workerId => {
         const stats = workerQualityStats[workerId];
         if (stats) {
-            salaries[workerId].qualityBreakdown = Object.values(stats).sort((a, b) => b.totalAmount - a.totalAmount);
+            salaries[workerId].qualityBreakdown = Object.values(stats)
+                .map(s => ({
+                    qualityName: s.qualityName,
+                    rate: s.rate,
+                    totalMeters: s.totalMeters,
+                    totalAmount: s.totalAmount,
+                    totalDays: s.activeDays.size
+                }))
+                .sort((a, b) => b.totalAmount - a.totalAmount);
         }
     });
 

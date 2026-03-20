@@ -1,19 +1,17 @@
--- Add overhead costing tables
-CREATE TABLE IF NOT EXISTS overhead_entries (
-    id TEXT PRIMARY KEY,
-    month TEXT NOT NULL,
-    name TEXT NOT NULL,
-    amount REAL NOT NULL,
-    created_at INTEGER DEFAULT (unixepoch()),
-    updated_at INTEGER DEFAULT (unixepoch())
+CREATE TABLE `overhead_entries` (
+	`id` text PRIMARY KEY NOT NULL,
+	`month` text NOT NULL,
+	`name` text NOT NULL,
+	`amount` real NOT NULL,
+	`created_at` integer,
+	`updated_at` integer
 );
-
-CREATE TABLE IF NOT EXISTS monthly_production (
-    id TEXT PRIMARY KEY,
-    month TEXT NOT NULL,
-    quality_id TEXT NOT NULL,
-    meters_produced REAL NOT NULL,
-    created_at INTEGER DEFAULT (unixepoch()),
-    updated_at INTEGER DEFAULT (unixepoch()),
-    UNIQUE(month, quality_id)
+--> statement-breakpoint
+CREATE TABLE `monthly_production` (
+	`id` text PRIMARY KEY NOT NULL,
+	`month` text NOT NULL,
+	`quality_id` text NOT NULL,
+	`meters_produced` real NOT NULL,
+	`created_at` integer,
+	`updated_at` integer
 );

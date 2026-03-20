@@ -153,7 +153,7 @@ export const calculateProductionSalaries = (
 
 export const calculateWarpingSalaries = (beams: Beam[], activeCycle: string, selectedMonth: string): WarpingSalary[] => {
     console.log('calculateWarpingSalaries called with:', { beamsCount: beams.length, activeCycle, selectedMonth });
-    
+
     const cycleBeams = beams.filter(b => {
         const beamDate = b.date;
         const beamMonth = beamDate.slice(0, 7);
@@ -257,7 +257,7 @@ export const calculateWiremanSalaries = (workers: WiremanWorker[], bills: Wirema
 
 export const calculateBeamPasarSalaries = (beamPasars: BeamPasar[], activeCycle: string, selectedMonth: string): BeamPasarSalary[] => {
     console.log('calculateBeamPasarSalaries called with:', { beamPasarsCount: beamPasars.length, activeCycle, selectedMonth });
-    
+
     const filtered = beamPasars.filter(bp => {
         const bpDate = bp.date;
         const bpMonth = bpDate.slice(0, 7);
@@ -283,13 +283,12 @@ export const calculateBeamPasarSalaries = (beamPasars: BeamPasar[], activeCycle:
 
     const result = filtered.map(bp => {
         const rate = bp.ratePerBeam || 0;
-        const beamEntriesForThisRate = rateGroups[rate].length;
-        
-        // Calculate amount based on beam entries count and rate per beam
-        const amount = beamEntriesForThisRate * rate;
-        
-        console.log(`Beam pasar calculation: ${beamEntriesForThisRate} entries × ₹${rate} = ₹${amount}`);
-        
+        // Each entry represents one beam being passed, so amount is just the rate.
+        // Summing these up in the total calculation will give the correct total.
+        const amount = rate;
+
+        console.log(`Beam pasar entry: Beam ${bp.beamNo}, Rate ₹${rate}`);
+
         return {
             ...bp,
             amount: amount

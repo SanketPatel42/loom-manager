@@ -55,7 +55,8 @@ export interface Quality {
     epi?: number;
     ppi?: number;
     danier?: string;
-    createdAt: string;
+    createdAt?: number; // Unix timestamp
+    updatedAt?: number; // Unix timestamp
     tars: number;
     beamRate: number;
     beamPasarRate: number;
@@ -287,6 +288,25 @@ export interface BobbinAttendance {
     cycle: '1-15' | '16-30';
 }
 
+// ── Monthly Salary Records ─────────────────────────────────
+
+export interface MonthlySalaryRecord {
+    id: string;
+    month: string; // Format: YYYY-MM
+    cycle: '1-15' | '16-30';
+    productionWorkerTotal: number;
+    begariTotal: number;
+    tfoTotal: number;
+    bobbinTotal: number;
+    masterTotal: number;
+    wiremanTotal: number;
+    warpingTotal: number;
+    beamPasarTotal: number;
+    grandTotal: number;
+    totalWorkers: number;
+    submittedAt: string;
+}
+
 // ── Notes ──────────────────────────────────────────────────
 
 export interface Note {
@@ -434,6 +454,7 @@ export const TABLE_NAMES = {
     qualityCosting: 'quality_costing',
     overheadEntries: 'overhead_entries',
     monthlyProduction: 'monthly_production',
+    monthlySalaryRecords: 'monthly_salary_records',
 } as const;
 
 export type TableName = keyof typeof TABLE_NAMES;

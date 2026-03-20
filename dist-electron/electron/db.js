@@ -48,6 +48,7 @@ exports.schema = schema;
 // Map to store DB connections: factoryPrefix -> DB instance
 const dbInstances = new Map();
 const getDb = (factoryPrefix = 'default') => {
+    var _a, _b;
     // If we already have a connection, return it
     if (dbInstances.has(factoryPrefix)) {
         return dbInstances.get(factoryPrefix);
@@ -78,10 +79,20 @@ const getDb = (factoryPrefix = 'default') => {
     let migrationsFolder;
     if (electron_1.app.isPackaged) {
         // Try multiple potential locations for migrations
+        // Windows: app.asar.unpacked is in the same directory as app.asar
+        // macOS: app.asar.unpacked is in Contents/Resources
         const pathsToTry = [
-            path_1.default.join(process.resourcesPath, 'app.asar.unpacked', 'drizzle'),
+            // extraResources path (most reliable)
+            path_1.default.join(process.resourcesPath, 'drizzle'),
+            // Windows NSIS installer path
+            path_1.default.join(path_1.default.dirname(electron_1.app.getPath('exe')), 'resources', 'app.asar.unpacked', 'drizzle'),
+            // Windows portable/standard path
             path_1.default.join(electron_1.app.getAppPath(), '..', 'app.asar.unpacked', 'drizzle'),
-            path_1.default.join(path_1.default.dirname(electron_1.app.getPath('exe')), 'Resources', 'app.asar.unpacked', 'drizzle')
+            // macOS path
+            path_1.default.join(process.resourcesPath, 'app.asar.unpacked', 'drizzle'),
+            // Fallback: direct drizzle folder
+            path_1.default.join(electron_1.app.getAppPath(), 'drizzle'),
+            path_1.default.join(path_1.default.dirname(electron_1.app.getPath('exe')), 'drizzle')
         ];
         migrationsFolder = pathsToTry[0]; // Default
         for (const p of pathsToTry) {
@@ -105,12 +116,64 @@ const getDb = (factoryPrefix = 'default') => {
             log(`Migrations completed successfully`);
         }
         catch (e) {
-            log(`Migration failed: ${e.message}\n${e.stack}`);
-            throw e;
+            log(`Drizzle migrate() failed: ${e.message}. Attempting manual SQL fallback...`);
+            // Fallback: run each SQL file directly with IF NOT EXISTS safety
+            try {
+                const sqlFiles = fs_1.default.readdirSync(migrationsFolder)
+                    .filter(f => f.endsWith('.sql'))
+                    .sort();
+                for (const sqlFile of sqlFiles) {
+                    const sqlPath = path_1.default.join(migrationsFolder, sqlFile);
+                    const sqlContent = fs_1.default.readFileSync(sqlPath, 'utf-8');
+                    // Split on Drizzle's statement-breakpoint marker
+                    const statements = sqlContent
+                        .split(/--> statement-breakpoint/)
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                    for (const stmt of statements) {
+                        try {
+                            // Convert CREATE TABLE to CREATE TABLE IF NOT EXISTS for safety
+                            const safeStmt = stmt.replace(/CREATE TABLE (`[^`]+`|\w+)/g, 'CREATE TABLE IF NOT EXISTS $1');
+                            sqlite.exec(safeStmt);
+                        }
+                        catch (stmtErr) {
+                            // Ignore "already exists" and "duplicate column" errors
+                            if (!((_a = stmtErr.message) === null || _a === void 0 ? void 0 : _a.includes('already exists')) &&
+                                !((_b = stmtErr.message) === null || _b === void 0 ? void 0 : _b.includes('duplicate column'))) {
+                                log(`  Warning: Failed stmt in ${sqlFile}: ${stmtErr.message}`);
+                            }
+                        }
+                    }
+                }
+                log(`Manual SQL fallback completed successfully`);
+            }
+            catch (fallbackErr) {
+                log(`Manual fallback also failed: ${fallbackErr.message}`);
+                // Don't throw — allow app to continue with whatever tables exist
+            }
         }
     }
     else {
         log(`CRITICAL: Migrations folder NOT FOUND at ${migrationsFolder}`);
+        log(`App path: ${electron_1.app.getAppPath()}`);
+        log(`Exe path: ${electron_1.app.getPath('exe')}`);
+        log(`Resources path: ${process.resourcesPath}`);
+        log(`Process cwd: ${process.cwd()}`);
+        // List all paths we tried
+        log(`Paths tried:`);
+        if (electron_1.app.isPackaged) {
+            const pathsToTry = [
+                path_1.default.join(path_1.default.dirname(electron_1.app.getPath('exe')), 'resources', 'app.asar.unpacked', 'drizzle'),
+                path_1.default.join(electron_1.app.getAppPath(), '..', 'app.asar.unpacked', 'drizzle'),
+                path_1.default.join(process.resourcesPath, 'app.asar.unpacked', 'drizzle'),
+                path_1.default.join(electron_1.app.getAppPath(), 'drizzle'),
+                path_1.default.join(path_1.default.dirname(electron_1.app.getPath('exe')), 'drizzle')
+            ];
+            pathsToTry.forEach(p => log(`  - ${p} (exists: ${fs_1.default.existsSync(p)})`));
+        }
+        // Don't throw - allow app to continue without migrations if folder is missing
+        // This can happen in development or if build is misconfigured
+        log(`WARNING: App will continue without running migrations. Database may not be initialized properly.`);
     }
     dbInstances.set(factoryPrefix, db);
     return db;

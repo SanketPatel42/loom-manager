@@ -106,6 +106,8 @@ const Index = () => {
     pendingSales: [] as any[],
     urgentPaymentCollection: [] as any[],
     yarnUsageByQuality: [] as any[],
+    stockByYarnCount: {} as Record<string, any>,
+    takasByQuality: {} as Record<string, any>,
   });
 
   const [dailyRecords, setDailyRecords] = useState<Record<string, any>>({});
@@ -294,6 +296,28 @@ const Index = () => {
       // --- Yarn Usage by Quality (This Month) ---
       const yarnUsageByQuality = calculateYarnUsageByQuality(beams, qualities, startOfMonth);
 
+      // --- Stock by Yarn Count ---
+      const stockByYarnCount: Record<string, any> = {};
+      Object.values(latestStockByYarn).forEach((s: any) => {
+        stockByYarnCount[s.yarnCount] = {
+          boxesAvailable: s.boxesAvailable,
+          date: s.date,
+          id: s.id
+        };
+      });
+
+      // --- Takas by Quality ---
+      const takasByQuality: Record<string, any> = {};
+      Object.entries(latestTakasByQuality).forEach(([qId, t]: any) => {
+        const quality = qualities.find(q => q.id === qId);
+        takasByQuality[qId] = {
+          qualityName: quality?.name || 'Unassigned',
+          remaining: t.remaining || 0,
+          date: t.date,
+          id: t.id
+        };
+      });
+
       setStats({
         beamsYesterday,
         takasProduced: yesterdayTakasProduced,
@@ -309,6 +333,8 @@ const Index = () => {
         pendingSales: pendingSalesData,
         urgentPaymentCollection,
         yarnUsageByQuality,
+        stockByYarnCount,
+        takasByQuality,
       });
 
       // Group all records by date
@@ -471,6 +497,147 @@ const Index = () => {
           </div>
         )
       }
+
+      {/* Stock & Inventory Overview */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Current Stock by Yarn Count */}
+        <Card className="rounded-xl border shadow-sm overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-amber-500/5 to-transparent pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Boxes className="h-5 w-5 text-amber-500" />
+                Current Stock by Yarn Count
+              </CardTitle>
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs py-1">
+                {Object.keys(stats.stockByYarnCount || {}).length} Types
+              </Badge>
+            </div>
+            <CardDescription className="text-sm">Available yarn boxes in warehouse</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-[400px] overflow-auto">
+              <Table>
+                <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="text-sm font-bold text-foreground">Yarn Count</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-foreground">Boxes Available</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-foreground">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.keys(stats.stockByYarnCount || {}).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground text-base">
+                        No stock data available
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    Object.entries(stats.stockByYarnCount || {})
+                      .sort(([, a]: any, [, b]: any) => a.boxesAvailable - b.boxesAvailable)
+                      .map(([yarnCount, data]: any) => {
+                        const isUrgent = data.boxesAvailable < 30;
+                        const isLow = data.boxesAvailable < 50 && data.boxesAvailable >= 30;
+                        
+                        return (
+                          <TableRow key={yarnCount} className={isUrgent ? 'bg-red-50 dark:bg-red-950/20' : isLow ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                            <TableCell className="font-bold text-base py-3">{yarnCount}</TableCell>
+                            <TableCell className="text-right">
+                              <span className={`text-2xl font-bold ${isUrgent ? 'text-red-600 dark:text-red-400' : isLow ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                                {data.boxesAvailable}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {isUrgent ? (
+                                <Badge variant="destructive" className="animate-pulse font-bold">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  URGENT DELIVERY
+                                </Badge>
+                              ) : isLow ? (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Low Stock
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700">
+                                  Good Stock
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Current Takas by Quality */}
+        <Card className="rounded-xl border shadow-sm overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-purple-500/5 to-transparent pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Package className="h-5 w-5 text-purple-500" />
+                Current Takas by Quality
+              </CardTitle>
+              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs py-1">
+                {Object.keys(stats.takasByQuality || {}).length} Qualities
+              </Badge>
+            </div>
+            <CardDescription className="text-sm">Available fabric takas ready for dispatch</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-[400px] overflow-auto">
+              <Table>
+                <TableHeader className="bg-muted/30 sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="text-sm font-bold text-foreground">Quality Name</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-foreground">Takas Available</TableHead>
+                    <TableHead className="text-right text-sm font-bold text-foreground">Last Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.keys(stats.takasByQuality || {}).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground text-base">
+                        No taka data available
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    Object.entries(stats.takasByQuality || {})
+                      .sort(([, a]: any, [, b]: any) => b.remaining - a.remaining)
+                      .map(([qualityId, data]: any) => (
+                        <TableRow key={qualityId}>
+                          <TableCell className="font-bold text-base py-3">
+                            {data.qualityName || 'Unassigned'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                              {data.remaining}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-xs text-muted-foreground">
+                            {new Date(data.date).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  )}
+                  <TableRow className="bg-muted/50 font-bold border-t-2">
+                    <TableCell>Total</TableCell>
+                    <TableCell className="text-right">
+                      <span className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                        {Object.values(stats.takasByQuality || {}).reduce((sum: number, data: any) => sum + data.remaining, 0)}
+                      </span>
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Urgent Payment Collection Section */}
       {

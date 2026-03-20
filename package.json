@@ -15,7 +15,8 @@
     "db:migrate": "drizzle-kit push:sqlite",
     "db:studio": "drizzle-kit studio",
     "electron:dev": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\":\\\"commonjs\\\"}')\" && concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "electron:build": "vite build && tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\":\\\"commonjs\\\"}')\" && electron-builder"
+    "electron:build": "vite build && tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\":\\\"commonjs\\\"}')\" && electron-builder",
+    "electron:build:win": "vite build && tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\":\\\"commonjs\\\"}')\" && electron-builder --win"
   },
   "dependencies": {
     "@ag-grid-community/client-side-row-model": "^32.3.9",
@@ -124,6 +125,13 @@
       "drizzle/**/*",
       "!**/*.md",
       "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "drizzle",
+        "to": "drizzle",
+        "filter": ["**/*"]
+      }
     ],
     "directories": {
       "output": "release",
